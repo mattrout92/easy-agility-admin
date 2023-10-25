@@ -30,6 +30,7 @@ const modalStyle = {
 };
 
 export type Entry = {
+  class_name: string;
   id: number;
   queued_at?: string;
   partnership?: string;
@@ -51,6 +52,7 @@ type C = {
   id: number;
   name: string;
   height_grades: any;
+  metadata?: any;
 };
 
 const showID = 5;
@@ -60,13 +62,17 @@ function App() {
   const [eliminated, setEliminated] = useState<boolean>(false);
   const [nfcRun, setNFCRun] = useState<boolean>(false);
   const [time, setTime] = useState<string>("0");
+  const [points, setPoints] = useState<number[]>([]);
   const [queue, setQueue] = useState<boolean>(false);
   const [scrime, setScrime] = useState<boolean>(false);
   const [classValue, setClassValue] = useState<number>(0);
   const [height, setHeight] = useState<string>("");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [queueConfirmOpen, setQueueConfirmOpen] = useState<boolean>(false);
+  const [classDetailsOpen, setClassDetailsOpen] = useState<boolean>(false);
   const [submitResultOpen, setSubmitResultOpen] = useState<boolean>(false);
+  const [courseDistance, setCourseDistance] = useState<number>(0);
+  const [courseTime, setCourseTime] = useState<number>(0);
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
@@ -74,6 +80,7 @@ function App() {
   const [heights, setHeights] = useState<string[]>([]);
 
   useEffect(() => {
+    checkCourseDetails();
     getEntries();
     // eslint-disable-next-line
   }, [height, classValue]);
@@ -83,18 +90,71 @@ function App() {
     getNextEntry();
   }, []);
 
+  const checkCourseDetails = () => {
+    const c = show?.classes?.find((c) => c.id === classValue);
+
+    console.log(c?.metadata);
+
+    if (
+      c &&
+      (!c?.metadata ||
+        !c?.metadata[height] ||
+        !c?.metadata[height].course_time ||
+        !c?.metadata[height].course_distance)
+    ) {
+      setClassDetailsOpen(true);
+    }
+  };
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.name === "course_time") {
+      setCourseTime(parseInt(event.target.value));
+    } else {
+      setCourseDistance(parseInt(event.target.value));
+    }
+  };
+
+  const updateClassDetails = async () => {
+    const response = await axios.post(
+      "https://api.easyagility.co.uk/update-class-details",
+      {
+        class_id: classValue,
+        height: height,
+        course_time: courseTime,
+        course_distance: courseDistance,
+      }
+    );
+
+    await getShow();
+
+    setClassDetailsOpen(false);
+  };
+
   const getShow = async () => {
     const response = await axios.get(
       `https://api.easyagility.co.uk/shows/${showID}`
     );
 
     setShow(response.data);
-    setClassValue(response.data?.classes[0].id);
-    if (response.data?.classes[0].height_grades) {
+    if (classValue === 0) {
+      setClassValue(response.data?.classes[0].id);
+    }
+    if (response.data?.classes[0].height_grades && classValue === 0) {
       const heightGrades = response.data?.classes[0].height_grades as any;
       const heights = Object.keys(heightGrades);
       setHeights(heights);
       setHeight(heights[0]);
+
+      console.log(response.data?.classes[0]);
+
+      if (
+        !response.data?.classes[0].metadata ||
+        !response.data?.classes[0].metadata[heights[0]] ||
+        !response.data?.classes[0].metadata[heights[0]].course_time ||
+        !response.data?.classes[0].metadata[heights[0]].course_distance
+      ) {
+        setClassDetailsOpen(true);
+      }
     }
   };
 
@@ -143,10 +203,12 @@ function App() {
         eliminated: eliminated,
         total_faults: faults.length * 5,
         run_data: faults,
+        points: points,
       }
     );
 
     setTime("0");
+    setPoints([]);
     setEliminated(false);
     setNFCRun(false);
     setFaults([]);
@@ -227,7 +289,9 @@ function App() {
           {nextEntry.id && nextEntry.id !== 0 ? (
             <>
               <Grid item xs={12}>
-                <Typography variant="h6">{nextEntry.partnership}</Typography>
+                <Typography variant="h6">
+                  {nextEntry.class_name} - {nextEntry.partnership}
+                </Typography>
               </Grid>
 
               {eliminated && (
@@ -241,84 +305,307 @@ function App() {
                 </Grid>
               )}
 
-              <Grid item xs={12}>
-                <Typography variant="h6">
-                  Faults: {faults.length === 0 ? "None" : faults.join(", ")}
-                </Typography>
-              </Grid>
+              {nextEntry.class_name.toLowerCase().includes("snooker") ? (
+                <>
+                  <Grid item xs={12}>
+                    <Typography variant="h5">
+                      Total Points -{" "}
+                      {points.reduce((partialSum, a) => partialSum + a, 0)}
+                    </Typography>
+                    <Typography variant="h6">
+                      Points - {points.join(", ")}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      type="number"
+                      label="Competitor Time"
+                      value={time}
+                      onChange={(e) => {
+                        try {
+                          setTime(e.target.value);
+                        } catch (e) {}
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.push(1);
+                        setPoints(p);
+                      }}
+                      fullWidth
+                      disabled={eliminated}
+                      variant="contained"
+                      sx={{ bgcolor: "red" }}
+                    >
+                      1
+                    </Button>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.push(2);
+                        setPoints(p);
+                      }}
+                      disabled={eliminated}
+                      fullWidth
+                      variant="contained"
+                      sx={{ bgcolor: "yellow", color: "black" }}
+                    >
+                      2
+                    </Button>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.push(3);
+                        setPoints(p);
+                      }}
+                      disabled={eliminated}
+                      fullWidth
+                      variant="contained"
+                      sx={{ bgcolor: "green" }}
+                    >
+                      3
+                    </Button>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.push(4);
+                        setPoints(p);
+                      }}
+                      disabled={eliminated}
+                      fullWidth
+                      variant="contained"
+                      sx={{ bgcolor: "brown" }}
+                    >
+                      4
+                    </Button>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.push(5);
+                        setPoints(p);
+                      }}
+                      disabled={eliminated}
+                      fullWidth
+                      variant="contained"
+                      sx={{ bgcolor: "blue" }}
+                    >
+                      5
+                    </Button>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.push(6);
+                        setPoints(p);
+                      }}
+                      disabled={eliminated}
+                      fullWidth
+                      variant="contained"
+                      sx={{ bgcolor: "pink", color: "black" }}
+                    >
+                      6
+                    </Button>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.push(7);
+                        setPoints(p);
+                      }}
+                      disabled={eliminated}
+                      fullWidth
+                      variant="contained"
+                      sx={{ bgcolor: "black" }}
+                    >
+                      7
+                    </Button>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        setEliminated(!eliminated);
+                      }}
+                      fullWidth
+                      variant="contained"
+                      color="error"
+                    >
+                      E
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.pop();
+                        setPoints(p);
+                      }}
+                      fullWidth
+                      variant="contained"
+                    >
+                      UNDO
+                    </Button>
+                  </Grid>
+                </>
+              ) : nextEntry.class_name.toLowerCase().includes("gamblers") ? (
+                <>
+                  <Grid item xs={12}>
+                    <Typography variant="h5">
+                      Total Points -{" "}
+                      {points.reduce((partialSum, a) => partialSum + a, 0)}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      type="number"
+                      label="Competitor Time"
+                      value={time}
+                      onChange={(e) => {
+                        try {
+                          setTime(e.target.value);
+                        } catch (e) {}
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      type="number"
+                      label="Points"
+                      value={points.reduce(
+                        (partialSum, a) => partialSum + a,
+                        0
+                      )}
+                      onChange={(e) => {
+                        setPoints([parseInt(e.target.value) || 0]);
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      onClick={() => {
+                        setEliminated(!eliminated);
+                      }}
+                      fullWidth
+                      variant="contained"
+                      color="error"
+                    >
+                      E
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      onClick={() => {
+                        const p = [...points];
+                        p.pop();
+                        setPoints(p);
+                      }}
+                      fullWidth
+                      variant="contained"
+                    >
+                      UNDO
+                    </Button>
+                  </Grid>
+                </>
+              ) : (
+                <>
+                  <Grid item xs={12}>
+                    <Typography variant="h6">
+                      Faults: {faults.length === 0 ? "None" : faults.join(", ")}
+                    </Typography>
+                  </Grid>
 
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  variant="outlined"
-                  type="number"
-                  label="Competitor Time"
-                  value={time}
-                  onChange={(e) => {
-                    try {
-                      setTime(e.target.value);
-                    } catch (e) {}
-                  }}
-                />
-              </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      type="number"
+                      label="Competitor Time"
+                      value={time}
+                      onChange={(e) => {
+                        try {
+                          setTime(e.target.value);
+                        } catch (e) {}
+                      }}
+                    />
+                  </Grid>
 
-              <Grid item xs={12}>
-                <Button
-                  onClick={() => {
-                    setFaults([...faults, "R"]);
-                  }}
-                  fullWidth
-                  variant="contained"
-                >
-                  Refusal
-                </Button>
-              </Grid>
-              <Grid item xs={12}>
-                <Button
-                  onClick={() => {
-                    setFaults([...faults, "5"]);
-                  }}
-                  fullWidth
-                  variant="contained"
-                >
-                  5
-                </Button>
-              </Grid>
-              <Grid
-                onClick={() => {
-                  setEliminated(!eliminated);
-                }}
-                item
-                xs={12}
-              >
-                <Button fullWidth variant="contained">
-                  {eliminated ? "Undo Elimination" : "Elimination"}
-                </Button>
-              </Grid>
-              <Grid
-                onClick={() => {
-                  setNFCRun(!nfcRun);
-                }}
-                item
-                xs={12}
-              >
-                <Button fullWidth variant="contained">
-                  {nfcRun ? "Undo NFC" : "NFC"}
-                </Button>
-              </Grid>
-              <Grid
-                onClick={() => {
-                  const f = [...faults];
-                  f.pop();
-                  setFaults(f);
-                }}
-                item
-                xs={12}
-              >
-                <Button fullWidth variant="contained">
-                  Undo Last Fault
-                </Button>
-              </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      onClick={() => {
+                        setFaults([...faults, "R"]);
+                      }}
+                      fullWidth
+                      variant="contained"
+                    >
+                      Refusal
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      onClick={() => {
+                        setFaults([...faults, "5"]);
+                      }}
+                      fullWidth
+                      variant="contained"
+                    >
+                      5
+                    </Button>
+                  </Grid>
+                  <Grid
+                    onClick={() => {
+                      setEliminated(!eliminated);
+                    }}
+                    item
+                    xs={12}
+                  >
+                    <Button fullWidth variant="contained">
+                      {eliminated ? "Undo Elimination" : "Elimination"}
+                    </Button>
+                  </Grid>
+                  <Grid
+                    onClick={() => {
+                      setNFCRun(!nfcRun);
+                    }}
+                    item
+                    xs={12}
+                  >
+                    <Button fullWidth variant="contained">
+                      {nfcRun ? "Undo NFC" : "NFC"}
+                    </Button>
+                  </Grid>
+                  <Grid
+                    onClick={() => {
+                      const f = [...faults];
+                      f.pop();
+                      setFaults(f);
+                    }}
+                    item
+                    xs={12}
+                  >
+                    <Button fullWidth variant="contained">
+                      Undo Last Fault
+                    </Button>
+                  </Grid>
+                </>
+              )}
               <Grid item xs={12}>
                 <Button
                   disabled={!nfcRun && !eliminated && parseFloat(time) === 0}
@@ -504,6 +791,43 @@ function App() {
                     setQueuedEntry({} as Entry);
                     setQueueConfirmOpen(false);
                   }}
+                  style={{ minWidth: "100%", marginTop: "30px" }}
+                  variant="contained"
+                >
+                  Confirm
+                </Button>
+              </Box>
+            </Modal>
+            <Modal
+              open={classDetailsOpen}
+              onClose={() => setClassDetailsOpen(false)}
+            >
+              <Box sx={modalStyle}>
+                <Typography id="modal-modal-title" variant="h6" component="h2">
+                  Add Course Time and Distance For This Class
+                </Typography>
+                <TextField
+                  sx={{ marginTop: 2 }}
+                  fullWidth
+                  name="course_time"
+                  label="Course Time (in seconds)"
+                  variant="outlined"
+                  type="number"
+                  value={courseTime}
+                  onChange={handleChange}
+                />
+                <TextField
+                  sx={{ marginTop: 2 }}
+                  fullWidth
+                  name="course_distance"
+                  label="Course Distance (in metres)"
+                  type="number"
+                  variant="outlined"
+                  value={courseDistance}
+                  onChange={handleChange}
+                />
+                <Button
+                  onClick={updateClassDetails}
                   style={{ minWidth: "100%", marginTop: "30px" }}
                   variant="contained"
                 >
