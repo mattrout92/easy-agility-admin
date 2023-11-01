@@ -88,6 +88,7 @@ function App() {
   useEffect(() => {
     getShow();
     getNextEntry();
+    // eslint-disable-next-line
   }, []);
 
   const checkCourseDetails = () => {
@@ -115,15 +116,12 @@ function App() {
   };
 
   const updateClassDetails = async () => {
-    const response = await axios.post(
-      "https://api.easyagility.co.uk/update-class-details",
-      {
-        class_id: classValue,
-        height: height,
-        course_time: courseTime,
-        course_distance: courseDistance,
-      }
-    );
+    await axios.post("https://api.easyagility.co.uk/update-class-details", {
+      class_id: classValue,
+      height: height,
+      course_time: courseTime,
+      course_distance: courseDistance,
+    });
 
     await getShow();
 
@@ -695,6 +693,17 @@ function App() {
               <Typography variant="h6">Queue</Typography>
             </Grid>
 
+            <Grid item xs={12}>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setClassDetailsOpen(true);
+                }}
+              >
+                Open Course Details
+              </Button>
+            </Grid>
+
             <Grid item xs={6}>
               <FormControl fullWidth>
                 <InputLabel id={`class-select-label`}>
@@ -832,6 +841,16 @@ function App() {
                   variant="contained"
                 >
                   Confirm
+                </Button>
+                <Button
+                  onClick={() => {
+                    setClassDetailsOpen(false);
+                  }}
+                  style={{ minWidth: "100%", marginTop: "30px" }}
+                  variant="contained"
+                  color="success"
+                >
+                  Close
                 </Button>
               </Box>
             </Modal>
