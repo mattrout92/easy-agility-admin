@@ -55,7 +55,7 @@ type C = {
   metadata?: any;
 };
 
-const showID = 5;
+const showID = 6;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
