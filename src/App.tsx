@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 import {
+  Alert,
   Box,
   Button,
   CssBaseline,
@@ -10,6 +11,7 @@ import {
   MenuItem,
   Modal,
   Select,
+  Snackbar,
   TextField,
   Typography,
 } from "@mui/material";
@@ -55,13 +57,13 @@ type C = {
   metadata?: any;
 };
 
-const showID = 6;
+const showID = 12;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
   const [eliminated, setEliminated] = useState<boolean>(false);
   const [nfcRun, setNFCRun] = useState<boolean>(false);
-  const [time, setTime] = useState<string>("0");
+  const [time, setTime] = useState<string>("");
   const [points, setPoints] = useState<number[]>([]);
   const [queue, setQueue] = useState<boolean>(false);
   const [scrime, setScrime] = useState<boolean>(false);
@@ -73,6 +75,7 @@ function App() {
   const [submitResultOpen, setSubmitResultOpen] = useState<boolean>(false);
   const [courseDistance, setCourseDistance] = useState<number>(0);
   const [courseTime, setCourseTime] = useState<number>(0);
+  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
@@ -153,6 +156,25 @@ function App() {
       ) {
         setClassDetailsOpen(true);
       }
+    }
+  };
+
+  const generateLeaguePoints = async () => {
+    try {
+      const heightGrades = show.classes.find((c) => c.id === classValue)
+        ?.height_grades as any;
+      const grades = heightGrades[height];
+
+      for (const g of grades) {
+        await axios.post(
+          `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/league-points?height=${encodeURIComponent(
+            height
+          )}&grades=${encodeURIComponent(g.join(","))}`
+        );
+      }
+      setSnackbarOpen(true);
+    } catch (e) {
+      console.log(e);
     }
   };
 
@@ -606,7 +628,7 @@ function App() {
               )}
               <Grid item xs={12}>
                 <Button
-                  disabled={!nfcRun && !eliminated && parseFloat(time) === 0}
+                  disabled={!nfcRun && !eliminated && time === ""}
                   fullWidth
                   color="success"
                   variant="contained"
@@ -699,8 +721,19 @@ function App() {
                 onClick={() => {
                   setClassDetailsOpen(true);
                 }}
+                sx={{ marginTop: 2, textTransform: "none" }}
               >
                 Open Course Details
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  generateLeaguePoints();
+                }}
+                sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
+                color="secondary"
+              >
+                Generate league points for this class
               </Button>
             </Grid>
 
@@ -881,6 +914,23 @@ function App() {
           </Grid>
         </Grid>
       )}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => {
+          setSnackbarOpen(false);
+        }}
+      >
+        <Alert
+          onClose={() => {
+            setSnackbarOpen(false);
+          }}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          League have been generated for this class
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
