@@ -227,7 +227,7 @@ function App() {
       }
     );
 
-    setTime("0");
+    setTime("");
     setPoints([]);
     setEliminated(false);
     setNFCRun(false);
@@ -291,7 +291,7 @@ function App() {
       <CssBaseline />
 
       {scrime ? (
-        <Grid padding={2} container rowSpacing={3}>
+        <Grid padding={2} container spacing={2} rowSpacing={3}>
           <Grid item xs={12}>
             <Button
               onClick={() => {
@@ -316,7 +316,9 @@ function App() {
 
               {eliminated && (
                 <Grid item xs={12}>
-                  <Typography variant="h6">Eliminated</Typography>
+                  <Typography color="red" variant="h6">
+                    Eliminated
+                  </Typography>
                 </Grid>
               )}
               {nfcRun && (
@@ -546,11 +548,14 @@ function App() {
                 </>
               ) : (
                 <>
-                  <Grid item xs={12}>
-                    <Typography variant="h6">
-                      Faults: {faults.length === 0 ? "None" : faults.join(", ")}
-                    </Typography>
-                  </Grid>
+                  {!eliminated && (
+                    <Grid item xs={12}>
+                      <Typography variant="h6">
+                        Faults:{" "}
+                        {faults.length === 0 ? "None" : faults.join(", ")}
+                      </Typography>
+                    </Grid>
+                  )}
 
                   <Grid item xs={12}>
                     <TextField
@@ -567,24 +572,34 @@ function App() {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid item xs={6}>
                     <Button
                       onClick={() => {
                         setFaults([...faults, "R"]);
                       }}
                       fullWidth
                       variant="contained"
+                      sx={{
+                        bgcolor: "green",
+                        minHeight: "100px",
+                        fontSize: 30,
+                      }}
                     >
-                      Refusal
+                      R
                     </Button>
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid item xs={6}>
                     <Button
                       onClick={() => {
                         setFaults([...faults, "5"]);
                       }}
                       fullWidth
                       variant="contained"
+                      sx={{
+                        bgcolor: "green",
+                        minHeight: "100px",
+                        fontSize: 30,
+                      }}
                     >
                       5
                     </Button>
@@ -594,10 +609,18 @@ function App() {
                       setEliminated(!eliminated);
                     }}
                     item
-                    xs={12}
+                    xs={6}
                   >
-                    <Button fullWidth variant="contained">
-                      {eliminated ? "Undo Elimination" : "Elimination"}
+                    <Button
+                      sx={{
+                        bgcolor: "red",
+                        minHeight: "100px",
+                        fontSize: 30,
+                      }}
+                      fullWidth
+                      variant="contained"
+                    >
+                      {eliminated ? "Undo E" : "E"}
                     </Button>
                   </Grid>
                   <Grid
@@ -605,9 +628,17 @@ function App() {
                       setNFCRun(!nfcRun);
                     }}
                     item
-                    xs={12}
+                    xs={6}
                   >
-                    <Button fullWidth variant="contained">
+                    <Button
+                      sx={{
+                        bgcolor: "blue",
+                        minHeight: "100px",
+                        fontSize: 24,
+                      }}
+                      fullWidth
+                      variant="contained"
+                    >
                       {nfcRun ? "Undo NFC" : "NFC"}
                     </Button>
                   </Grid>
@@ -628,7 +659,9 @@ function App() {
               )}
               <Grid item xs={12}>
                 <Button
-                  disabled={!nfcRun && !eliminated && time === ""}
+                  disabled={
+                    !nfcRun && !eliminated && (time === "" || time === "0")
+                  }
                   fullWidth
                   color="success"
                   variant="contained"
