@@ -57,7 +57,7 @@ type C = {
   metadata?: any;
 };
 
-const showID = 12;
+const showID = 20;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
@@ -138,7 +138,7 @@ function App() {
 
     setShow(response.data);
     if (classValue === 0) {
-      setClassValue(response.data?.classes[0].id);
+      // setClassValue(response.data?.classes[0].id);
     }
     if (response.data?.classes[0].height_grades && classValue === 0) {
       const heightGrades = response.data?.classes[0].height_grades as any;
@@ -266,7 +266,15 @@ function App() {
           <Button
             fullWidth
             variant="outlined"
-            color={params.row.queued_at ? "primary" : "success"}
+            color={
+              params.row.queued_at
+                ? "primary"
+                : params.row.time ||
+                  params.row.eliminated ||
+                  params.row?.nfc_run
+                ? "error"
+                : "success"
+            }
             onClick={() => {
               setQueuedEntry(params.row);
               setQueueConfirmOpen(true);
@@ -729,48 +737,11 @@ function App() {
         </Grid>
       ) : queue ? (
         <>
-          <Grid padding={2} container rowSpacing={3}>
-            <Grid item xs={12}>
-              <Button
-                onClick={() => {
-                  getNextEntry();
-                  setQueue(false);
-                  setScrime(true);
-                }}
-                fullWidth
-                color="secondary"
-                variant="contained"
-              >
-                Go To Scrime
-              </Button>
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="h6">Queue</Typography>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  setClassDetailsOpen(true);
-                }}
-                sx={{ marginTop: 2, textTransform: "none" }}
-              >
-                Open Course Details
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  generateLeaguePoints();
-                }}
-                sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
-                color="secondary"
-              >
-                Generate league points for this class
-              </Button>
-            </Grid>
-
-            <Grid item xs={6}>
+          {classValue === 0 ? (
+            <Box padding={2} textAlign={"center"}>
+              <Typography marginTop={5} marginBottom={5}>
+                Please select a class to view the queue
+              </Typography>
               <FormControl fullWidth>
                 <InputLabel id={`class-select-label`}>
                   Select A Class
@@ -800,127 +771,202 @@ function App() {
                   ))}
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={6}>
-              <FormControl fullWidth>
-                <InputLabel id={`height-select-label`}>
-                  Select A Height
-                </InputLabel>
-                <Select
-                  labelId={`height-select-label`}
-                  id={`height-select`}
-                  label="Select A Height"
-                  name="select_height"
-                  fullWidth
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                >
-                  {heights.map((height, index) => (
-                    <MenuItem key={index} value={height}>
-                      {height}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <DataGrid
-                {...({
-                  columns: columns,
-                  rows: entries || [],
-                } as any)}
-                autoHeight
-              />
-            </Grid>
-
-            <Modal
-              open={queueConfirmOpen}
-              onClose={() => setQueueConfirmOpen(false)}
-            >
-              <Box sx={modalStyle}>
-                <Typography id="modal-modal-title" variant="h6" component="h2">
-                  {queuedEntry.queued_at ? "Unqueue" : "Queue"} This Entry
-                </Typography>
-                <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                  Are you sure you want to
-                  {queuedEntry.queued_at ? " unqueue" : " queue"}{" "}
-                  {queuedEntry.partnership}
-                </Typography>
-
+            </Box>
+          ) : (
+            <Grid padding={2} container rowSpacing={3}>
+              <Grid item xs={12}>
                 <Button
                   onClick={() => {
-                    setQueuedEntry({} as Entry);
-                    setQueueConfirmOpen(false);
+                    getNextEntry();
+                    setQueue(false);
+                    setScrime(true);
                   }}
-                  style={{ minWidth: "100%", marginTop: "30px" }}
-                  variant="contained"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    queuedEntry.queued_at
-                      ? unqueueEntry(queuedEntry.id)
-                      : queueEntry(queuedEntry.id);
-                    setQueuedEntry({} as Entry);
-                    setQueueConfirmOpen(false);
-                  }}
-                  style={{ minWidth: "100%", marginTop: "30px" }}
-                  variant="contained"
-                >
-                  Confirm
-                </Button>
-              </Box>
-            </Modal>
-            <Modal
-              open={classDetailsOpen}
-              onClose={() => setClassDetailsOpen(false)}
-            >
-              <Box sx={modalStyle}>
-                <Typography id="modal-modal-title" variant="h6" component="h2">
-                  Add Course Time and Distance For This Class
-                </Typography>
-                <TextField
-                  sx={{ marginTop: 2 }}
                   fullWidth
-                  name="course_time"
-                  label="Course Time (in seconds)"
-                  variant="outlined"
-                  type="number"
-                  value={courseTime}
-                  onChange={handleChange}
+                  color="secondary"
+                  variant="contained"
+                >
+                  Go To Scrime
+                </Button>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="h6">
+                  Queue -{" "}
+                  {show?.classes?.find((c) => c.id === classValue)?.name}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    setClassDetailsOpen(true);
+                  }}
+                  sx={{ marginTop: 2, textTransform: "none" }}
+                >
+                  Open Course Details
+                </Button>
+                {/* <Button
+                  variant="contained"
+                  onClick={() => {
+                    generateLeaguePoints();
+                  }}
+                  sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
+                  color="secondary"
+                >
+                  Generate league points for this class
+                </Button> */}
+                <Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setClassValue(0);
+                    }}
+                    sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
+                    color="error"
+                  >
+                    Exit this class
+                  </Button>
+                </Button>
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel id={`height-select-label`}>
+                    Select A Height
+                  </InputLabel>
+                  <Select
+                    labelId={`height-select-label`}
+                    id={`height-select`}
+                    label="Select A Height"
+                    name="select_height"
+                    fullWidth
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                  >
+                    {heights.map((height, index) => (
+                      <MenuItem key={index} value={height}>
+                        {height}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <DataGrid
+                  {...({
+                    columns: columns,
+                    rows: entries || [],
+                  } as any)}
+                  autoHeight
                 />
-                <TextField
-                  sx={{ marginTop: 2 }}
-                  fullWidth
-                  name="course_distance"
-                  label="Course Distance (in metres)"
-                  type="number"
-                  variant="outlined"
-                  value={courseDistance}
-                  onChange={handleChange}
-                />
-                <Button
-                  onClick={updateClassDetails}
-                  style={{ minWidth: "100%", marginTop: "30px" }}
-                  variant="contained"
-                >
-                  Confirm
-                </Button>
-                <Button
-                  onClick={() => {
-                    setClassDetailsOpen(false);
-                  }}
-                  style={{ minWidth: "100%", marginTop: "30px" }}
-                  variant="contained"
-                  color="success"
-                >
-                  Close
-                </Button>
-              </Box>
-            </Modal>
-          </Grid>
+              </Grid>
+
+              <Modal
+                open={queueConfirmOpen}
+                onClose={() => setQueueConfirmOpen(false)}
+              >
+                <Box sx={modalStyle}>
+                  <Typography
+                    id="modal-modal-title"
+                    variant="h6"
+                    component="h2"
+                  >
+                    {queuedEntry.queued_at ? "Unqueue" : "Queue"} This Entry
+                  </Typography>
+                  {queuedEntry.time ||
+                    queuedEntry.eliminated ||
+                    (queuedEntry.nfc_run && (
+                      <Typography marginTop={1} color="red">
+                        WARNING: THIS PERSON HAS ALREADY RUN IN THIS CLASS.
+                        PLEASE MAKE SURE YOU ARE CERTAIN THAT YOU WANT TO
+                        COMPLETE THIS ACTION.
+                      </Typography>
+                    ))}
+                  <Typography id="modal-modal-description" sx={{ mt: 2 }}>
+                    Are you sure you want to
+                    {queuedEntry.queued_at ? " unqueue" : " queue"}{" "}
+                    {queuedEntry.partnership}
+                  </Typography>
+
+                  <Button
+                    onClick={() => {
+                      setQueuedEntry({} as Entry);
+                      setQueueConfirmOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      queuedEntry.queued_at
+                        ? unqueueEntry(queuedEntry.id)
+                        : queueEntry(queuedEntry.id);
+                      setQueuedEntry({} as Entry);
+                      setQueueConfirmOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Confirm
+                  </Button>
+                </Box>
+              </Modal>
+              <Modal
+                open={classDetailsOpen}
+                onClose={() => setClassDetailsOpen(false)}
+              >
+                <Box sx={modalStyle}>
+                  <Typography
+                    id="modal-modal-title"
+                    variant="h6"
+                    component="h2"
+                  >
+                    Add Course Time and Distance For This Class
+                  </Typography>
+                  <TextField
+                    sx={{ marginTop: 2 }}
+                    fullWidth
+                    name="course_time"
+                    label="Course Time (in seconds)"
+                    variant="outlined"
+                    type="number"
+                    value={courseTime}
+                    onChange={handleChange}
+                  />
+                  <TextField
+                    sx={{ marginTop: 2 }}
+                    fullWidth
+                    name="course_distance"
+                    label="Course Distance (in metres)"
+                    type="number"
+                    variant="outlined"
+                    value={courseDistance}
+                    onChange={handleChange}
+                  />
+                  <Button
+                    onClick={updateClassDetails}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setClassDetailsOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                    color="success"
+                  >
+                    Close
+                  </Button>
+                </Box>
+              </Modal>
+            </Grid>
+          )}
         </>
       ) : (
         <Grid padding={2} container rowSpacing={3}>
