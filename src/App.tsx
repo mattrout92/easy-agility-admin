@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
+import { send } from "process";
 
 const modalStyle = {
   minWidth: "350px",
@@ -55,9 +56,10 @@ type C = {
   name: string;
   height_grades: any;
   metadata?: any;
+  status?: string;
 };
 
-const showID = 20;
+const showID = 23;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
@@ -76,6 +78,9 @@ function App() {
   const [courseDistance, setCourseDistance] = useState<number>(0);
   const [courseTime, setCourseTime] = useState<number>(0);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const [closeClassOpen, setCloseClassOpen] = useState<boolean>(false);
+  const [sendMessageOpen, setSendMessageOpen] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>("");
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
@@ -93,6 +98,17 @@ function App() {
     getNextEntry();
     // eslint-disable-next-line
   }, []);
+
+  const setClassMessage = async () => {
+    const c = show?.classes?.find((c) => c.id === classValue);
+
+    if (c) {
+      await axios.post(`https://api.easyagility.co.uk/add-class-message`, {
+        message: `${c.name} - ${message}`,
+        class_id: c.id,
+      });
+    }
+  };
 
   const checkCourseDetails = () => {
     const c = show?.classes?.find((c) => c.id === classValue);
@@ -131,14 +147,48 @@ function App() {
     setClassDetailsOpen(false);
   };
 
+  const closeClass = async () => {
+    await axios.post(
+      `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/close`
+    );
+
+    for (const c of show.classes) {
+      if (c.status === "open" && c.id !== classValue) {
+        setClassValue(c.id);
+        const heightGrades = show.classes.find(
+          (cl) => cl.id === c.id
+        )?.height_grades;
+
+        const heights = Object.keys(heightGrades);
+        setHeights(heights);
+        setHeight(heights[0]);
+        getShow();
+        break;
+      }
+    }
+  };
+
   const getShow = async () => {
     const response = await axios.get(
       `https://api.easyagility.co.uk/shows/${showID}`
     );
 
     setShow(response.data);
-    if (classValue === 0) {
-      // setClassValue(response.data?.classes[0].id);
+    const s = response.data;
+    if (classValue === 0 && s) {
+      for (const c of response.data.classes) {
+        if (c.status === "open") {
+          setClassValue(c.id);
+          const heightGrades = s.classes.find(
+            (cl: any) => cl.id === c.id
+          )?.height_grades;
+
+          const heights = Object.keys(heightGrades);
+          setHeights(heights);
+          setHeight(heights[0]);
+          break;
+        }
+      }
     }
     if (response.data?.classes[0].height_grades && classValue === 0) {
       const heightGrades = response.data?.classes[0].height_grades as any;
@@ -195,6 +245,13 @@ function App() {
 
     setEntries(response.data);
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => getEntries(), 30000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [classValue, height]);
 
   const queueEntry = async (entryId: number) => {
     await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`);
@@ -614,21 +671,22 @@ function App() {
                   </Grid>
                   <Grid
                     onClick={() => {
-                      setEliminated(!eliminated);
+                      setFaults([...faults, "H"]);
                     }}
                     item
                     xs={6}
                   >
                     <Button
                       sx={{
-                        bgcolor: "red",
+                        bgcolor: "gray",
+                        color: "white",
                         minHeight: "100px",
                         fontSize: 30,
                       }}
                       fullWidth
                       variant="contained"
                     >
-                      {eliminated ? "Undo E" : "E"}
+                      H
                     </Button>
                   </Grid>
                   <Grid
@@ -648,6 +706,25 @@ function App() {
                       variant="contained"
                     >
                       {nfcRun ? "Undo NFC" : "NFC"}
+                    </Button>
+                  </Grid>
+                  <Grid
+                    onClick={() => {
+                      setEliminated(!eliminated);
+                    }}
+                    item
+                    xs={12}
+                  >
+                    <Button
+                      sx={{
+                        bgcolor: "red",
+                        minHeight: "100px",
+                        fontSize: 30,
+                      }}
+                      fullWidth
+                      variant="contained"
+                    >
+                      {eliminated ? "Undo E" : "E"}
                     </Button>
                   </Grid>
                   <Grid
@@ -805,6 +882,26 @@ function App() {
                 >
                   Open Course Details
                 </Button>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={() => {
+                    setCloseClassOpen(true);
+                  }}
+                  sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
+                >
+                  Close This Class
+                </Button>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={() => {
+                    setSendMessageOpen(true);
+                  }}
+                  sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
+                >
+                  PA Announcement
+                </Button>
                 {/* <Button
                   variant="contained"
                   onClick={() => {
@@ -854,6 +951,12 @@ function App() {
 
               <Grid item xs={12}>
                 <DataGrid
+                  sx={{
+                    // disable cell selection style
+                    ".MuiDataGrid-cell:focus": {
+                      outline: "none",
+                    },
+                  }}
                   {...({
                     columns: columns,
                     rows: entries || [],
@@ -906,6 +1009,138 @@ function App() {
                         : queueEntry(queuedEntry.id);
                       setQueuedEntry({} as Entry);
                       setQueueConfirmOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Confirm
+                  </Button>
+                </Box>
+              </Modal>
+              <Modal
+                open={closeClassOpen}
+                onClose={() => setCloseClassOpen(false)}
+              >
+                <Box sx={modalStyle}>
+                  <Typography
+                    id="modal-modal-title"
+                    variant="h6"
+                    component="h2"
+                  >
+                    Close This Class
+                  </Typography>
+                  <Typography id="modal-modal-description" sx={{ mt: 2 }}>
+                    Are you sure you want to close this class?
+                  </Typography>
+
+                  <Button
+                    onClick={() => {
+                      setCloseClassOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      closeClass();
+                      setCloseClassOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Confirm
+                  </Button>
+                </Box>
+              </Modal>
+              <Modal
+                open={sendMessageOpen}
+                onClose={() => setSendMessageOpen(false)}
+              >
+                <Box sx={modalStyle}>
+                  <Typography
+                    id="modal-modal-title"
+                    variant="h6"
+                    component="h2"
+                  >
+                    Send PA Message
+                  </Typography>
+                  <TextField
+                    sx={{ marginTop: 2 }}
+                    fullWidth
+                    name="message"
+                    label="Message"
+                    variant="outlined"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+
+                  <Button
+                    onClick={() => {
+                      setMessage("Calling to 20");
+                    }}
+                    sx={{ marginTop: 2 }}
+                  >
+                    Calling to 20
+                  </Button>
+                  <br />
+                  <Button
+                    onClick={() => {
+                      setMessage("Calling to 40");
+                    }}
+                  >
+                    Calling to 40
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMessage("Calling all remaining dogs");
+                    }}
+                  >
+                    Calling all remaining dogs
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMessage("Closing in 5 minutes");
+                    }}
+                  >
+                    Closing in 5 minutes
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMessage("Walking now, starting in 5 minutes");
+                    }}
+                  >
+                    Walking now, starting in 5 minutes
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMessage("Walking now, starting in 10 minutes");
+                    }}
+                  >
+                    Walking now, starting in 10 minutes
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMessage("Walking now, starting in 15 minutes");
+                    }}
+                  >
+                    Walking now, starting in 15 minutes
+                  </Button>
+
+                  <Button
+                    onClick={() => {
+                      setCloseClassOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setClassMessage();
+                      setSendMessageOpen(false);
                     }}
                     style={{ minWidth: "100%", marginTop: "30px" }}
                     variant="contained"
