@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
-import { send } from "process";
 
 const modalStyle = {
   minWidth: "350px",
@@ -59,7 +58,8 @@ type C = {
   status?: string;
 };
 
-const showID = 23;
+const showID = 24;
+const ringId = 2;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
@@ -180,7 +180,7 @@ function App() {
 
   const getShow = async () => {
     const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}`
+      `https://api.easyagility.co.uk/shows/${showID}&ring_id=${ringId}`
     );
 
     setShow(response.data);
@@ -240,7 +240,7 @@ function App() {
 
   const getNextEntry = async () => {
     const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}/entries/next`
+      `https://api.easyagility.co.uk/shows/${showID}/entries/next?ring_id=${ringId}`
     );
 
     setNextEntry(response.data);
@@ -250,7 +250,7 @@ function App() {
     const response = await axios.get(
       `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/entries?height=${encodeURIComponent(
         height
-      )}`
+      )}}`
     );
 
     setEntries(response.data);
