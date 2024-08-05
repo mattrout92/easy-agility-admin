@@ -59,7 +59,7 @@ type C = {
 };
 
 const showID = 24;
-const ringId = 2;
+const ringId = 1;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
