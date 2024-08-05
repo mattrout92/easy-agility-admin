@@ -65,7 +65,7 @@ function App() {
   const [faults, setFaults] = useState<string[]>([]);
   const [eliminated, setEliminated] = useState<boolean>(false);
   const [nfcRun, setNFCRun] = useState<boolean>(false);
-  const [time, setTime] = useState<string>("");
+  const [time, setTime] = useState<string>("0.000");
   const [points, setPoints] = useState<number[]>([]);
   const [queue, setQueue] = useState<boolean>(false);
   const [scrime, setScrime] = useState<boolean>(false);
@@ -101,6 +101,26 @@ function App() {
     getNextEntry();
     // eslint-disable-next-line
   }, []);
+
+  const handleChangeTime = (event: any) => {
+    let inputValue = event.target.value;
+
+    // Remove non-numeric characters
+    inputValue = inputValue.replace(/[^0-9]/g, "");
+
+    if (inputValue === "") {
+      setTime("0.000");
+      return;
+    }
+
+    // Format the number to three decimal places
+    let numericValue = parseInt(inputValue, 10);
+    numericValue = numericValue / 1000;
+
+    // Convert the number to a string with exactly three decimal places
+    const formattedValue = numericValue.toFixed(3);
+    setTime(formattedValue);
+  };
 
   const setClassMessage = async () => {
     const c = show?.classes?.find((c) => c.id === classValue);
@@ -408,7 +428,10 @@ function App() {
             <>
               <Grid item xs={12}>
                 <Typography variant="h6">
-                  {nextEntry.class_name} - {nextEntry.partnership}
+                  {nextEntry.class_name} -{" "}
+                  <span style={{ fontWeight: "bold" }}>
+                    {nextEntry.partnership}
+                  </span>
                 </Typography>
               </Grid>
 
@@ -659,15 +682,33 @@ function App() {
                     <TextField
                       fullWidth
                       variant="outlined"
-                      type="number"
+                      inputProps={{
+                        inputMode: "decimal",
+                      }}
                       label="Competitor Time"
                       value={time}
                       onChange={(e) => {
                         try {
-                          setTime(e.target.value);
+                          handleChangeTime(e);
                         } catch (e) {}
                       }}
                     />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      sx={{ minHeight: "50px", fontSize: 24 }}
+                      disabled={
+                        !nfcRun &&
+                        !eliminated &&
+                        (time === "" || time === "0" || time === "0.000")
+                      }
+                      fullWidth
+                      color="success"
+                      variant="contained"
+                      onClick={() => setSubmitResultOpen(true)}
+                    >
+                      Submit
+                    </Button>
                   </Grid>
 
                   <Grid item xs={6}>
@@ -778,7 +819,9 @@ function App() {
               <Grid item xs={12}>
                 <Button
                   disabled={
-                    !nfcRun && !eliminated && (time === "" || time === "0")
+                    !nfcRun &&
+                    !eliminated &&
+                    (time === "" || time === "0" || time === "0.000")
                   }
                   fullWidth
                   color="success"
@@ -803,24 +846,27 @@ function App() {
                   <Typography id="modal-modal-description" sx={{ mt: 2 }}>
                     Are you sure you want to submit this result
                   </Typography>
+                  <Typography fontWeight={"bold"}>Time: {time}</Typography>
 
-                  <Button
-                    onClick={() => {
-                      setSubmitResultOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Cancel
-                  </Button>
                   <Button
                     onClick={() => {
                       submitResult(nextEntry.id);
                     }}
                     style={{ minWidth: "100%", marginTop: "30px" }}
                     variant="contained"
+                    color="success"
                   >
                     Confirm
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setSubmitResultOpen(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                    color="error"
+                  >
+                    Cancel
                   </Button>
                 </Box>
               </Modal>
