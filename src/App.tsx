@@ -81,6 +81,9 @@ function App() {
   const [closeClassOpen, setCloseClassOpen] = useState<boolean>(false);
   const [sendMessageOpen, setSendMessageOpen] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
+  const [changeHandlerName, setChangeHandlerName] = useState<boolean>(false);
+  const [newHandlerName, setNewHandlerName] = useState<string>("");
+  const [entryId, setEntryId] = useState<number>(0);
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
@@ -108,6 +111,13 @@ function App() {
         class_id: c.id,
       });
     }
+  };
+
+  const changeHandlerNameReq = async () => {
+    await axios.post(`https://api.easyagility.co.uk/change-handler-name`, {
+      handler_name: newHandlerName,
+      entry_id: entryId,
+    });
   };
 
   const checkCourseDetails = () => {
@@ -317,28 +327,30 @@ function App() {
     },
     {
       type: "actions",
-      width: 120,
+      width: 200,
       getActions: (params: any) => {
         return [
-          <Button
-            fullWidth
-            variant="outlined"
-            color={
-              params.row.queued_at
-                ? "primary"
-                : params.row.time ||
-                  params.row.eliminated ||
-                  params.row?.nfc_run
-                ? "error"
-                : "success"
-            }
-            onClick={() => {
-              setQueuedEntry(params.row);
-              setQueueConfirmOpen(true);
-            }}
-          >
-            {params.row.queued_at ? "Unqueue" : "Queue"}
-          </Button>,
+          <>
+            <Button
+              fullWidth
+              variant="outlined"
+              color={
+                params.row.queued_at
+                  ? "primary"
+                  : params.row.time ||
+                    params.row.eliminated ||
+                    params.row?.nfc_run
+                  ? "error"
+                  : "success"
+              }
+              onClick={() => {
+                setQueuedEntry(params.row);
+                setQueueConfirmOpen(true);
+              }}
+            >
+              {params.row.queued_at ? "Unqueue" : "Queue"}
+            </Button>
+          </>,
         ];
       },
     },
@@ -348,6 +360,27 @@ function App() {
       type: "boolean",
       valueGetter: ({ value, row }: any) =>
         value ? true : row?.eliminated ? true : row?.nfc_run ? true : false,
+    },
+    {
+      field: "",
+      width: 400,
+      renderCell: (params: any) => {
+        return [
+          <>
+            <Button
+              variant="outlined"
+              color={"success"}
+              onClick={() => {
+                setChangeHandlerName(true);
+                setNewHandlerName("");
+                setEntryId(params.row.id);
+              }}
+            >
+              Change Handler Name
+            </Button>
+          </>,
+        ];
+      },
     },
   ];
 
@@ -1130,7 +1163,7 @@ function App() {
 
                   <Button
                     onClick={() => {
-                      setCloseClassOpen(false);
+                      setSendMessageOpen(false);
                     }}
                     style={{ minWidth: "100%", marginTop: "30px" }}
                     variant="contained"
@@ -1140,6 +1173,7 @@ function App() {
                   <Button
                     onClick={() => {
                       setClassMessage();
+                      setMessage("");
                       setSendMessageOpen(false);
                     }}
                     style={{ minWidth: "100%", marginTop: "30px" }}
@@ -1197,6 +1231,53 @@ function App() {
                     color="success"
                   >
                     Close
+                  </Button>
+                </Box>
+              </Modal>
+              <Modal
+                open={changeHandlerName}
+                onClose={() => setChangeHandlerName(false)}
+              >
+                <Box sx={modalStyle}>
+                  <Typography
+                    id="modal-modal-title"
+                    variant="h6"
+                    component="h2"
+                  >
+                    Change Handler Name
+                  </Typography>
+                  <TextField
+                    sx={{ marginTop: 2 }}
+                    fullWidth
+                    name="handler_name"
+                    label="New Handler Name"
+                    variant="outlined"
+                    value={newHandlerName}
+                    onChange={(e) => {
+                      setNewHandlerName(e.target.value);
+                    }}
+                  />
+                  <Button
+                    onClick={() => {
+                      changeHandlerNameReq();
+                      setChangeHandlerName(false);
+                      setNewHandlerName("");
+                      getEntries();
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setChangeHandlerName(false);
+                    }}
+                    style={{ minWidth: "100%", marginTop: "30px" }}
+                    variant="contained"
+                    color="success"
+                  >
+                    Cancel
                   </Button>
                 </Box>
               </Modal>
