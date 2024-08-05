@@ -180,7 +180,7 @@ function App() {
 
   const getShow = async () => {
     const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}&ring_id=${ringId}`
+      `https://api.easyagility.co.uk/shows/${showID}?ring_id=${ringId}`
     );
 
     setShow(response.data);
@@ -250,7 +250,7 @@ function App() {
     const response = await axios.get(
       `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/entries?height=${encodeURIComponent(
         height
-      )}}`
+      )}`
     );
 
     setEntries(response.data);
