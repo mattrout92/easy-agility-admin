@@ -34,7 +34,7 @@ const modalStyle = {
 export type Entry = {
   class_name: string;
   id: number;
-  queued_at?: string;
+  queued_at: string | null;
   partnership?: string;
   time?: number;
   nfc_run?: boolean;
@@ -58,8 +58,8 @@ type C = {
   status?: string;
 };
 
-const showID = 24;
-const ringId = 1;
+const showID = 27;
+const ringId = 3;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
@@ -273,7 +273,11 @@ function App() {
       )}`
     );
 
-    setEntries(response.data);
+    setEntries(
+      response.data.sort((e1: Entry, e2: Entry) =>
+        !e1.queued_at ? 1 : e1.queued_at ? -1 : 0
+      )
+    );
   };
 
   useEffect(() => {
