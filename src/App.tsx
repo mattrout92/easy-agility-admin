@@ -41,6 +41,7 @@ export type Entry = {
   eliminated?: boolean;
   total_faults?: number;
   run_data?: string[];
+  last_result_class_different?: boolean;
 };
 
 type Show = {
@@ -92,7 +93,7 @@ function App() {
 
   useEffect(() => {
     checkCourseDetails();
-    getEntries();
+    getEntries(classValue);
     // eslint-disable-next-line
   }, [height, classValue]);
 
@@ -266,7 +267,7 @@ function App() {
     setNextEntry(response.data);
   };
 
-  const getEntries = async () => {
+  const getEntries = async (classValue: number) => {
     const response = await axios.get(
       `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/entries?height=${encodeURIComponent(
         height
@@ -274,14 +275,14 @@ function App() {
     );
 
     setEntries(
-      response.data.sort((e1: Entry, e2: Entry) =>
+      response.data?.sort((e1: Entry, e2: Entry) =>
         !e1.queued_at ? 1 : e1.queued_at ? -1 : 0
       )
     );
   };
 
   useEffect(() => {
-    const interval = setInterval(() => getEntries(), 30000);
+    const interval = setInterval(() => getEntries(classValue), 30000);
     return () => {
       clearInterval(interval);
     };
@@ -289,14 +290,14 @@ function App() {
 
   const queueEntry = async (entryId: number) => {
     await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`);
-    await getEntries();
+    await getEntries(classValue);
   };
 
   const unqueueEntry = async (entryId: number) => {
     await axios.post(
       `https://api.easyagility.co.uk/entries/${entryId}/unqueue`
     );
-    await getEntries();
+    await getEntries(classValue);
   };
 
   const submitResult = async (entryId: number) => {
@@ -414,293 +415,461 @@ function App() {
 
       {scrime ? (
         <Grid padding={2} container spacing={2} rowSpacing={3}>
-          <Grid item xs={12}>
-            <Button
-              onClick={() => {
-                getNextEntry();
-                setScrime(false);
-                setQueue(true);
-              }}
-              fullWidth
-              color="secondary"
-              variant="contained"
-            >
-              Go To Queue
-            </Button>
-          </Grid>
-          {nextEntry.id && nextEntry.id !== 0 ? (
+          {nextEntry.last_result_class_different && nextEntry.id !== 0 ? (
+            <Box padding={5}>
+              <Typography color="red" variant="h5">
+                WARNING: The last entry was in a different class. Please review
+                the details of this entry below:
+              </Typography>
+              <Typography variant="h6">
+                {nextEntry.class_name} -{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {nextEntry.partnership}
+                </span>
+              </Typography>
+              <Typography color="red" variant="h5">
+                If this is correct, please press the button below to continue.
+              </Typography>
+              <Typography color="red" variant="h5">
+                If this is incorrect, ask the queuer to unqueue everyone in this
+                class, exit the class and select the correct class. If you
+                continue then the results will be entered in the wrong class.
+              </Typography>
+              <Button
+                style={{ minWidth: "100%", marginTop: "30px" }}
+                variant="contained"
+                onClick={() => {
+                  setNextEntry({
+                    ...nextEntry,
+                    last_result_class_different: false,
+                  });
+                }}
+              >
+                Continue
+              </Button>
+              <Button
+                color="success"
+                onClick={() => {
+                  getNextEntry();
+                }}
+                style={{ minWidth: "100%", marginTop: "30px" }}
+                variant="contained"
+              >
+                Refresh
+              </Button>
+            </Box>
+          ) : (
             <>
               <Grid item xs={12}>
-                <Typography variant="h6">
-                  {nextEntry.class_name} -{" "}
-                  <span style={{ fontWeight: "bold" }}>
-                    {nextEntry.partnership}
-                  </span>
-                </Typography>
+                <Button
+                  onClick={() => {
+                    getNextEntry();
+                    setScrime(false);
+                    setQueue(true);
+                  }}
+                  fullWidth
+                  color="secondary"
+                  variant="contained"
+                >
+                  Go To Queue
+                </Button>
               </Grid>
-
-              {eliminated && (
-                <Grid item xs={12}>
-                  <Typography color="red" variant="h6">
-                    Eliminated
-                  </Typography>
-                </Grid>
-              )}
-              {nfcRun && (
-                <Grid item xs={12}>
-                  <Typography variant="h6">NFC</Typography>
-                </Grid>
-              )}
-
-              {nextEntry.class_name.toLowerCase().includes("snooker") ? (
+              {nextEntry.id && nextEntry.id !== 0 ? (
                 <>
                   <Grid item xs={12}>
-                    <Typography variant="h5">
-                      Total Points -{" "}
-                      {points.reduce((partialSum, a) => partialSum + a, 0)}
-                    </Typography>
                     <Typography variant="h6">
-                      Points - {points.join(", ")}
+                      {nextEntry.class_name} -{" "}
+                      <span style={{ fontWeight: "bold" }}>
+                        {nextEntry.partnership}
+                      </span>
                     </Typography>
                   </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      variant="outlined"
-                      type="number"
-                      label="Competitor Time"
-                      value={time}
-                      onChange={(e) => {
-                        try {
-                          setTime(e.target.value);
-                        } catch (e) {}
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.push(1);
-                        setPoints(p);
-                      }}
-                      fullWidth
-                      disabled={eliminated}
-                      variant="contained"
-                      sx={{ bgcolor: "red" }}
-                    >
-                      1
-                    </Button>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.push(2);
-                        setPoints(p);
-                      }}
-                      disabled={eliminated}
-                      fullWidth
-                      variant="contained"
-                      sx={{ bgcolor: "yellow", color: "black" }}
-                    >
-                      2
-                    </Button>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.push(3);
-                        setPoints(p);
-                      }}
-                      disabled={eliminated}
-                      fullWidth
-                      variant="contained"
-                      sx={{ bgcolor: "green" }}
-                    >
-                      3
-                    </Button>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.push(4);
-                        setPoints(p);
-                      }}
-                      disabled={eliminated}
-                      fullWidth
-                      variant="contained"
-                      sx={{ bgcolor: "brown" }}
-                    >
-                      4
-                    </Button>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.push(5);
-                        setPoints(p);
-                      }}
-                      disabled={eliminated}
-                      fullWidth
-                      variant="contained"
-                      sx={{ bgcolor: "blue" }}
-                    >
-                      5
-                    </Button>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.push(6);
-                        setPoints(p);
-                      }}
-                      disabled={eliminated}
-                      fullWidth
-                      variant="contained"
-                      sx={{ bgcolor: "pink", color: "black" }}
-                    >
-                      6
-                    </Button>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.push(7);
-                        setPoints(p);
-                      }}
-                      disabled={eliminated}
-                      fullWidth
-                      variant="contained"
-                      sx={{ bgcolor: "black" }}
-                    >
-                      7
-                    </Button>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        setEliminated(!eliminated);
-                      }}
-                      fullWidth
-                      variant="contained"
-                      color="error"
-                    >
-                      E
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.pop();
-                        setPoints(p);
-                      }}
-                      fullWidth
-                      variant="contained"
-                    >
-                      UNDO
-                    </Button>
-                  </Grid>
-                </>
-              ) : nextEntry.class_name.toLowerCase().includes("gamblers") ? (
-                <>
-                  <Grid item xs={12}>
-                    <Typography variant="h5">
-                      Total Points -{" "}
-                      {points.reduce((partialSum, a) => partialSum + a, 0)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      variant="outlined"
-                      type="number"
-                      label="Competitor Time"
-                      value={time}
-                      onChange={(e) => {
-                        try {
-                          setTime(e.target.value);
-                        } catch (e) {}
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      variant="outlined"
-                      type="number"
-                      label="Points"
-                      value={points.reduce(
-                        (partialSum, a) => partialSum + a,
-                        0
-                      )}
-                      onChange={(e) => {
-                        setPoints([parseInt(e.target.value) || 0]);
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Button
-                      onClick={() => {
-                        setEliminated(!eliminated);
-                      }}
-                      fullWidth
-                      variant="contained"
-                      color="error"
-                    >
-                      E
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Button
-                      onClick={() => {
-                        const p = [...points];
-                        p.pop();
-                        setPoints(p);
-                      }}
-                      fullWidth
-                      variant="contained"
-                    >
-                      UNDO
-                    </Button>
-                  </Grid>
-                </>
-              ) : (
-                <>
-                  {!eliminated && (
+
+                  {eliminated && (
                     <Grid item xs={12}>
-                      <Typography variant="h6">
-                        Faults:{" "}
-                        {faults.length === 0 ? "None" : faults.join(", ")}
+                      <Typography color="red" variant="h6">
+                        Eliminated
                       </Typography>
                     </Grid>
                   )}
+                  {nfcRun && (
+                    <Grid item xs={12}>
+                      <Typography variant="h6">NFC</Typography>
+                    </Grid>
+                  )}
 
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      variant="outlined"
-                      inputProps={{
-                        inputMode: "decimal",
-                      }}
-                      label="Competitor Time"
-                      value={time}
-                      onChange={(e) => {
-                        try {
-                          handleChangeTime(e);
-                        } catch (e) {}
-                      }}
-                    />
-                  </Grid>
+                  {nextEntry.class_name.toLowerCase().includes("snooker") ? (
+                    <>
+                      <Grid item xs={12}>
+                        <Typography variant="h5">
+                          Total Points -{" "}
+                          {points.reduce((partialSum, a) => partialSum + a, 0)}
+                        </Typography>
+                        <Typography variant="h6">
+                          Points - {points.join(", ")}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          type="number"
+                          label="Competitor Time"
+                          value={time}
+                          onChange={(e) => {
+                            try {
+                              setTime(e.target.value);
+                            } catch (e) {}
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.push(1);
+                            setPoints(p);
+                          }}
+                          fullWidth
+                          disabled={eliminated}
+                          variant="contained"
+                          sx={{ bgcolor: "red" }}
+                        >
+                          1
+                        </Button>
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.push(2);
+                            setPoints(p);
+                          }}
+                          disabled={eliminated}
+                          fullWidth
+                          variant="contained"
+                          sx={{ bgcolor: "yellow", color: "black" }}
+                        >
+                          2
+                        </Button>
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.push(3);
+                            setPoints(p);
+                          }}
+                          disabled={eliminated}
+                          fullWidth
+                          variant="contained"
+                          sx={{ bgcolor: "green" }}
+                        >
+                          3
+                        </Button>
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.push(4);
+                            setPoints(p);
+                          }}
+                          disabled={eliminated}
+                          fullWidth
+                          variant="contained"
+                          sx={{ bgcolor: "brown" }}
+                        >
+                          4
+                        </Button>
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.push(5);
+                            setPoints(p);
+                          }}
+                          disabled={eliminated}
+                          fullWidth
+                          variant="contained"
+                          sx={{ bgcolor: "blue" }}
+                        >
+                          5
+                        </Button>
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.push(6);
+                            setPoints(p);
+                          }}
+                          disabled={eliminated}
+                          fullWidth
+                          variant="contained"
+                          sx={{ bgcolor: "pink", color: "black" }}
+                        >
+                          6
+                        </Button>
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.push(7);
+                            setPoints(p);
+                          }}
+                          disabled={eliminated}
+                          fullWidth
+                          variant="contained"
+                          sx={{ bgcolor: "black" }}
+                        >
+                          7
+                        </Button>
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            setEliminated(!eliminated);
+                          }}
+                          fullWidth
+                          variant="contained"
+                          color="error"
+                        >
+                          E
+                        </Button>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.pop();
+                            setPoints(p);
+                          }}
+                          fullWidth
+                          variant="contained"
+                        >
+                          UNDO
+                        </Button>
+                      </Grid>
+                    </>
+                  ) : nextEntry.class_name
+                      .toLowerCase()
+                      .includes("gamblers") ? (
+                    <>
+                      <Grid item xs={12}>
+                        <Typography variant="h5">
+                          Total Points -{" "}
+                          {points.reduce((partialSum, a) => partialSum + a, 0)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          type="number"
+                          label="Competitor Time"
+                          value={time}
+                          onChange={(e) => {
+                            try {
+                              setTime(e.target.value);
+                            } catch (e) {}
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          type="number"
+                          label="Points"
+                          value={points.reduce(
+                            (partialSum, a) => partialSum + a,
+                            0
+                          )}
+                          onChange={(e) => {
+                            setPoints([parseInt(e.target.value) || 0]);
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={3}>
+                        <Button
+                          onClick={() => {
+                            setEliminated(!eliminated);
+                          }}
+                          fullWidth
+                          variant="contained"
+                          color="error"
+                        >
+                          E
+                        </Button>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Button
+                          onClick={() => {
+                            const p = [...points];
+                            p.pop();
+                            setPoints(p);
+                          }}
+                          fullWidth
+                          variant="contained"
+                        >
+                          UNDO
+                        </Button>
+                      </Grid>
+                    </>
+                  ) : (
+                    <>
+                      {!eliminated && (
+                        <Grid item xs={12}>
+                          <Typography variant="h6">
+                            Faults:{" "}
+                            {faults.length === 0 ? "None" : faults.join(", ")}
+                          </Typography>
+                        </Grid>
+                      )}
+
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          inputProps={{
+                            inputMode: "decimal",
+                          }}
+                          label="Competitor Time"
+                          value={time}
+                          onChange={(e) => {
+                            try {
+                              handleChangeTime(e);
+                            } catch (e) {}
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Button
+                          sx={{ minHeight: "50px", fontSize: 24 }}
+                          disabled={
+                            !nfcRun &&
+                            !eliminated &&
+                            (time === "" || time === "0" || time === "0.000")
+                          }
+                          fullWidth
+                          color="success"
+                          variant="contained"
+                          onClick={() => setSubmitResultOpen(true)}
+                        >
+                          Submit
+                        </Button>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Button
+                          onClick={() => {
+                            setFaults([...faults, "R"]);
+                          }}
+                          fullWidth
+                          variant="contained"
+                          sx={{
+                            bgcolor: "green",
+                            minHeight: "100px",
+                            fontSize: 30,
+                          }}
+                        >
+                          R
+                        </Button>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Button
+                          onClick={() => {
+                            setFaults([...faults, "5"]);
+                          }}
+                          fullWidth
+                          variant="contained"
+                          sx={{
+                            bgcolor: "green",
+                            minHeight: "100px",
+                            fontSize: 30,
+                          }}
+                        >
+                          5
+                        </Button>
+                      </Grid>
+                      <Grid
+                        onClick={() => {
+                          setFaults([...faults, "H"]);
+                        }}
+                        item
+                        xs={6}
+                      >
+                        <Button
+                          sx={{
+                            bgcolor: "gray",
+                            color: "white",
+                            minHeight: "100px",
+                            fontSize: 30,
+                          }}
+                          fullWidth
+                          variant="contained"
+                        >
+                          H
+                        </Button>
+                      </Grid>
+                      <Grid
+                        onClick={() => {
+                          setNFCRun(!nfcRun);
+                        }}
+                        item
+                        xs={6}
+                      >
+                        <Button
+                          sx={{
+                            bgcolor: "blue",
+                            minHeight: "100px",
+                            fontSize: 24,
+                          }}
+                          fullWidth
+                          variant="contained"
+                        >
+                          {nfcRun ? "Undo NFC" : "NFC"}
+                        </Button>
+                      </Grid>
+                      <Grid
+                        onClick={() => {
+                          setEliminated(!eliminated);
+                        }}
+                        item
+                        xs={12}
+                      >
+                        <Button
+                          sx={{
+                            bgcolor: "red",
+                            minHeight: "100px",
+                            fontSize: 30,
+                          }}
+                          fullWidth
+                          variant="contained"
+                        >
+                          {eliminated ? "Undo E" : "E"}
+                        </Button>
+                      </Grid>
+                      <Grid
+                        onClick={() => {
+                          const f = [...faults];
+                          f.pop();
+                          setFaults(f);
+                        }}
+                        item
+                        xs={12}
+                      >
+                        <Button fullWidth variant="contained">
+                          Undo Last Fault
+                        </Button>
+                      </Grid>
+                    </>
+                  )}
                   <Grid item xs={12}>
                     <Button
-                      sx={{ minHeight: "50px", fontSize: 24 }}
                       disabled={
                         !nfcRun &&
                         !eliminated &&
@@ -714,184 +883,65 @@ function App() {
                       Submit
                     </Button>
                   </Grid>
+                  <Modal
+                    open={submitResultOpen}
+                    onClose={() => setSubmitResultOpen(false)}
+                  >
+                    <Box sx={modalStyle}>
+                      <Typography
+                        id="modal-modal-title"
+                        variant="h6"
+                        component="h2"
+                      >
+                        Submit This Result
+                      </Typography>
+                      <Typography id="modal-modal-description" sx={{ mt: 2 }}>
+                        Are you sure you want to submit this result
+                      </Typography>
+                      <Typography fontWeight={"bold"}>Time: {time}</Typography>
 
-                  <Grid item xs={6}>
+                      <Button
+                        onClick={() => {
+                          submitResult(nextEntry.id);
+                        }}
+                        style={{ minWidth: "100%", marginTop: "30px" }}
+                        variant="contained"
+                        color="success"
+                      >
+                        Confirm
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setSubmitResultOpen(false);
+                        }}
+                        style={{ minWidth: "100%", marginTop: "30px" }}
+                        variant="contained"
+                        color="error"
+                      >
+                        Cancel
+                      </Button>
+                    </Box>
+                  </Modal>
+                </>
+              ) : (
+                <>
+                  <Grid item xs={12}>
+                    <Typography variant="h6">
+                      There are currently no entries queued to run.
+                    </Typography>
                     <Button
+                      color="success"
                       onClick={() => {
-                        setFaults([...faults, "R"]);
+                        getNextEntry();
                       }}
-                      fullWidth
-                      variant="contained"
-                      sx={{
-                        bgcolor: "green",
-                        minHeight: "100px",
-                        fontSize: 30,
-                      }}
-                    >
-                      R
-                    </Button>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Button
-                      onClick={() => {
-                        setFaults([...faults, "5"]);
-                      }}
-                      fullWidth
-                      variant="contained"
-                      sx={{
-                        bgcolor: "green",
-                        minHeight: "100px",
-                        fontSize: 30,
-                      }}
-                    >
-                      5
-                    </Button>
-                  </Grid>
-                  <Grid
-                    onClick={() => {
-                      setFaults([...faults, "H"]);
-                    }}
-                    item
-                    xs={6}
-                  >
-                    <Button
-                      sx={{
-                        bgcolor: "gray",
-                        color: "white",
-                        minHeight: "100px",
-                        fontSize: 30,
-                      }}
-                      fullWidth
+                      style={{ minWidth: "100%", marginTop: "30px" }}
                       variant="contained"
                     >
-                      H
-                    </Button>
-                  </Grid>
-                  <Grid
-                    onClick={() => {
-                      setNFCRun(!nfcRun);
-                    }}
-                    item
-                    xs={6}
-                  >
-                    <Button
-                      sx={{
-                        bgcolor: "blue",
-                        minHeight: "100px",
-                        fontSize: 24,
-                      }}
-                      fullWidth
-                      variant="contained"
-                    >
-                      {nfcRun ? "Undo NFC" : "NFC"}
-                    </Button>
-                  </Grid>
-                  <Grid
-                    onClick={() => {
-                      setEliminated(!eliminated);
-                    }}
-                    item
-                    xs={12}
-                  >
-                    <Button
-                      sx={{
-                        bgcolor: "red",
-                        minHeight: "100px",
-                        fontSize: 30,
-                      }}
-                      fullWidth
-                      variant="contained"
-                    >
-                      {eliminated ? "Undo E" : "E"}
-                    </Button>
-                  </Grid>
-                  <Grid
-                    onClick={() => {
-                      const f = [...faults];
-                      f.pop();
-                      setFaults(f);
-                    }}
-                    item
-                    xs={12}
-                  >
-                    <Button fullWidth variant="contained">
-                      Undo Last Fault
+                      Refresh
                     </Button>
                   </Grid>
                 </>
               )}
-              <Grid item xs={12}>
-                <Button
-                  disabled={
-                    !nfcRun &&
-                    !eliminated &&
-                    (time === "" || time === "0" || time === "0.000")
-                  }
-                  fullWidth
-                  color="success"
-                  variant="contained"
-                  onClick={() => setSubmitResultOpen(true)}
-                >
-                  Submit
-                </Button>
-              </Grid>
-              <Modal
-                open={submitResultOpen}
-                onClose={() => setSubmitResultOpen(false)}
-              >
-                <Box sx={modalStyle}>
-                  <Typography
-                    id="modal-modal-title"
-                    variant="h6"
-                    component="h2"
-                  >
-                    Submit This Result
-                  </Typography>
-                  <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                    Are you sure you want to submit this result
-                  </Typography>
-                  <Typography fontWeight={"bold"}>Time: {time}</Typography>
-
-                  <Button
-                    onClick={() => {
-                      submitResult(nextEntry.id);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                    color="success"
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setSubmitResultOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                    color="error"
-                  >
-                    Cancel
-                  </Button>
-                </Box>
-              </Modal>
-            </>
-          ) : (
-            <>
-              <Grid item xs={12}>
-                <Typography variant="h6">
-                  There are currently no entries queued to run.
-                </Typography>
-                <Button
-                  color="success"
-                  onClick={() => {
-                    getNextEntry();
-                  }}
-                  style={{ minWidth: "100%", marginTop: "30px" }}
-                  variant="contained"
-                >
-                  Refresh
-                </Button>
-              </Grid>
             </>
           )}
         </Grid>
@@ -921,6 +971,10 @@ function App() {
                     const heights = Object.keys(heightGrades);
                     setHeights(heights);
                     setHeight(heights[0]);
+
+                    console.log("getting entries");
+                    console.log(e.target.value);
+                    getEntries(e.target.value as any);
                   }}
                   fullWidth
                 >
@@ -1000,6 +1054,7 @@ function App() {
                     variant="contained"
                     onClick={() => {
                       setClassValue(0);
+                      setHeight("");
                     }}
                     sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
                     color="error"
@@ -1312,7 +1367,7 @@ function App() {
                       changeHandlerNameReq();
                       setChangeHandlerName(false);
                       setNewHandlerName("");
-                      getEntries();
+                      getEntries(classValue);
                     }}
                     style={{ minWidth: "100%", marginTop: "30px" }}
                     variant="contained"
