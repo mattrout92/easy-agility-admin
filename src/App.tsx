@@ -59,8 +59,8 @@ type C = {
   status?: string;
 };
 
-const showID = 28;
-const ringId = 7;
+const showID = 25;
+const ringId = 5;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
@@ -76,6 +76,7 @@ function App() {
   const [queueConfirmOpen, setQueueConfirmOpen] = useState<boolean>(false);
   const [classDetailsOpen, setClassDetailsOpen] = useState<boolean>(false);
   const [submitResultOpen, setSubmitResultOpen] = useState<boolean>(false);
+  const [disableSubmit, setDisableSubmit] = useState<boolean>(false);
   const [courseDistance, setCourseDistance] = useState<number>(0);
   const [courseTime, setCourseTime] = useState<number>(0);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
@@ -240,24 +241,24 @@ function App() {
     }
   };
 
-  const generateLeaguePoints = async () => {
-    try {
-      const heightGrades = show.classes.find((c) => c.id === classValue)
-        ?.height_grades as any;
-      const grades = heightGrades[height];
+  // const generateLeaguePoints = async () => {
+  //   try {
+  //     const heightGrades = show.classes.find((c) => c.id === classValue)
+  //       ?.height_grades as any;
+  //     const grades = heightGrades[height];
 
-      for (const g of grades) {
-        await axios.post(
-          `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/league-points?height=${encodeURIComponent(
-            height
-          )}&grades=${encodeURIComponent(g.join(","))}`
-        );
-      }
-      setSnackbarOpen(true);
-    } catch (e) {
-      console.log(e);
-    }
-  };
+  //     for (const g of grades) {
+  //       await axios.post(
+  //         `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/league-points?height=${encodeURIComponent(
+  //           height
+  //         )}&grades=${encodeURIComponent(g.join(","))}`
+  //       );
+  //     }
+  //     setSnackbarOpen(true);
+  //   } catch (e) {
+  //     console.log(e);
+  //   }
+  // };
 
   const getNextEntry = async () => {
     const response = await axios.get(
@@ -286,6 +287,7 @@ function App() {
     return () => {
       clearInterval(interval);
     };
+    // eslint-disable-next-line
   }, [classValue, height]);
 
   const queueEntry = async (entryId: number) => {
@@ -301,6 +303,7 @@ function App() {
   };
 
   const submitResult = async (entryId: number) => {
+    setDisableSubmit(true);
     await axios.post(
       `https://api.easyagility.co.uk/entries/${entryId}/unqueue`
     );
@@ -327,6 +330,7 @@ function App() {
 
     await getNextEntry();
 
+    setDisableSubmit(false);
     setSubmitResultOpen(false);
   };
 
@@ -485,6 +489,14 @@ function App() {
                     </Typography>
                   </Grid>
 
+                  {nextEntry.partnership?.includes("Olivia Wood") && (
+                    <Grid item xs={12}>
+                      <Typography variant="h6" color="red">
+                        ***Please note this competitor is autistic.***
+                      </Typography>
+                    </Grid>
+                  )}
+
                   {eliminated && (
                     <Grid item xs={12}>
                       <Typography color="red" variant="h6">
@@ -518,7 +530,7 @@ function App() {
                           value={time}
                           onChange={(e) => {
                             try {
-                              setTime(e.target.value);
+                              handleChangeTime(e);
                             } catch (e) {}
                           }}
                         />
@@ -673,7 +685,7 @@ function App() {
                           value={time}
                           onChange={(e) => {
                             try {
-                              setTime(e.target.value);
+                              handleChangeTime(e);
                             } catch (e) {}
                           }}
                         />
@@ -693,6 +705,57 @@ function App() {
                           }}
                         />
                       </Grid>
+                      <Grid item xs={12}>
+                        <Button
+                          sx={{ minHeight: "50px", fontSize: 24 }}
+                          disabled={
+                            !nfcRun &&
+                            !eliminated &&
+                            (time === "" || time === "0" || time === "0.000")
+                          }
+                          fullWidth
+                          color="success"
+                          variant="contained"
+                          onClick={() => setSubmitResultOpen(true)}
+                        >
+                          Submit
+                        </Button>
+                      </Grid>
+                      {show?.classes?.find(
+                        (c) => c.name === nextEntry.class_name
+                      )?.metadata?.["gamblers_points"] &&
+                        Object.keys(
+                          show?.classes?.find(
+                            (c) => c.name === nextEntry.class_name
+                          )?.metadata?.["gamblers_points"]
+                        ).map((item, index) => (
+                          <Grid item xs={3} key={index}>
+                            <Button
+                              color={
+                                index % 3 === 0
+                                  ? "success"
+                                  : index % 3 === 1
+                                  ? "secondary"
+                                  : "primary"
+                              }
+                              onClick={() => {
+                                setPoints([
+                                  ...points,
+                                  parseInt(
+                                    show?.classes?.find(
+                                      (c) => c.name === nextEntry.class_name
+                                    )?.metadata?.["gamblers_points"][item]
+                                  ),
+                                ]);
+                              }}
+                              fullWidth
+                              variant="contained"
+                            >
+                              {item}
+                            </Button>
+                          </Grid>
+                        ))}
+
                       <Grid item xs={3}>
                         <Button
                           onClick={() => {
@@ -904,6 +967,7 @@ function App() {
                         onClick={() => {
                           submitResult(nextEntry.id);
                         }}
+                        disabled={disableSubmit}
                         style={{ minWidth: "100%", marginTop: "30px" }}
                         variant="contained"
                         color="success"
@@ -1129,6 +1193,11 @@ function App() {
                     {queuedEntry.queued_at ? " unqueue" : " queue"}{" "}
                     {queuedEntry.partnership}
                   </Typography>
+                  {queuedEntry.partnership?.includes("Olivia Wood") && (
+                    <Typography mt={2} color="red">
+                      ***Please note this competitor is autistic.***
+                    </Typography>
+                  )}
 
                   <Button
                     onClick={() => {
