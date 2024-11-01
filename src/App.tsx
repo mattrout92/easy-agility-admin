@@ -731,13 +731,29 @@ function App() {
                         ).map((item, index) => (
                           <Grid item xs={3} key={index}>
                             <Button
-                              color={
-                                index % 3 === 0
-                                  ? "success"
-                                  : index % 3 === 1
-                                  ? "secondary"
-                                  : "primary"
-                              }
+                              sx={{
+                                bgcolor:
+                                  show?.classes?.find(
+                                    (c) => c.name === nextEntry.class_name
+                                  )?.metadata?.["gamblers_points"][item] === 5
+                                    ? "green"
+                                    : show?.classes?.find(
+                                        (c) => c.name === nextEntry.class_name
+                                      )?.metadata?.["gamblers_points"][item] ===
+                                      4
+                                    ? "orange"
+                                    : show?.classes?.find(
+                                        (c) => c.name === nextEntry.class_name
+                                      )?.metadata?.["gamblers_points"][item] ===
+                                      2
+                                    ? "blue"
+                                    : show?.classes?.find(
+                                        (c) => c.name === nextEntry.class_name
+                                      )?.metadata?.["gamblers_points"][item] ===
+                                      1
+                                    ? "purple"
+                                    : "black",
+                              }}
                               onClick={() => {
                                 setPoints([
                                   ...points,
