@@ -59,8 +59,8 @@ type C = {
   status?: string;
 };
 
-const showID = 25;
-const ringId = 5;
+const showID = 30;
+const ringId = 7;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
@@ -275,11 +275,7 @@ function App() {
       )}`
     );
 
-    setEntries(
-      response.data?.sort((e1: Entry, e2: Entry) =>
-        !e1.queued_at ? 1 : e1.queued_at ? -1 : 0
-      )
-    );
+    setEntries(response.data);
   };
 
   useEffect(() => {
