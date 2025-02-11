@@ -59,8 +59,8 @@ type C = {
   status?: string;
 };
 
-const showID = 38;
-const ringId = 3;
+const showID = 36;
+const ringId = 8;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
@@ -360,7 +360,9 @@ function App() {
               fullWidth
               variant="outlined"
               color={
-                params.row.queued_at
+                params.row.withdrawn
+                  ? "error"
+                  : params.row.queued_at
                   ? "primary"
                   : params.row.time ||
                     params.row.eliminated ||
@@ -373,7 +375,11 @@ function App() {
                 setQueueConfirmOpen(true);
               }}
             >
-              {params.row.queued_at ? "Unqueue" : "Queue"}
+              {params.row.withdrawn
+                ? "Withdrawn"
+                : params.row.queued_at
+                ? "Unqueue"
+                : "Queue"}
             </Button>
           </>,
         ];
