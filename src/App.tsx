@@ -59,11 +59,12 @@ type C = {
   status?: string;
 };
 
-const showID = 41;
-const ringId = 12;
+const showID = 40;
+const ringId = 9;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
+  const [faults100, setFaults100] = useState<string[]>([]);
   const [eliminated, setEliminated] = useState<boolean>(false);
   const [nfcRun, setNFCRun] = useState<boolean>(false);
   const [time, setTime] = useState<string>("0.000");
@@ -312,7 +313,7 @@ function App() {
         time: parseFloat(time),
         nfc_run: nfcRun,
         eliminated: eliminated,
-        total_faults: faults.length * 5,
+        total_faults: faults.length * 5 + faults100.length * 100,
         run_data: faults,
         points: points,
       }
@@ -806,7 +807,9 @@ function App() {
                         <Grid item xs={12}>
                           <Typography variant="h6">
                             Faults:{" "}
-                            {faults.length === 0 ? "None" : faults.join(", ")}
+                            {faults.length === 0 && faults100.length === 0
+                              ? "None"
+                              : faults.join(", ") + " " + faults100.join(", ")}
                           </Typography>
                         </Grid>
                       )}
@@ -876,6 +879,24 @@ function App() {
                           5
                         </Button>
                       </Grid>
+                      {nextEntry.class_name.toLowerCase().includes("pairs") && (
+                        <Grid item xs={12}>
+                          <Button
+                            onClick={() => {
+                              setFaults100([...faults100, "100"]);
+                            }}
+                            fullWidth
+                            variant="contained"
+                            sx={{
+                              bgcolor: "green",
+                              minHeight: "100px",
+                              fontSize: 30,
+                            }}
+                          >
+                            100F
+                          </Button>
+                        </Grid>
+                      )}
                       <Grid
                         onClick={() => {
                           setFaults([...faults, "H"]);
@@ -947,6 +968,21 @@ function App() {
                           Undo Last Fault
                         </Button>
                       </Grid>
+                      {nextEntry.class_name.toLowerCase().includes("pairs") && (
+                        <Grid
+                          onClick={() => {
+                            const f = [...faults100];
+                            f.pop();
+                            setFaults100(f);
+                          }}
+                          item
+                          xs={12}
+                        >
+                          <Button fullWidth variant="contained">
+                            Undo Last 100 Fault
+                          </Button>
+                        </Grid>
+                      )}
                     </>
                   )}
                   <Grid item xs={12}>
