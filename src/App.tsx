@@ -59,8 +59,8 @@ type C = {
   status?: string;
 };
 
-const showID = 43;
-const ringId = 12;
+const showID = 42;
+const ringId = 10;
 
 function App() {
   const [faults, setFaults] = useState<string[]>([]);
