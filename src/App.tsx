@@ -270,13 +270,15 @@ function App() {
   };
 
   const getEntries = async (classValue: number) => {
-    const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/entries?height=${encodeURIComponent(
-        height
-      )}`
-    );
+    if (height) {
+      const response = await axios.get(
+        `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/entries?height=${encodeURIComponent(
+          height
+        )}`
+      );
 
-    setEntries(response.data);
+      setEntries(response.data);
+    }
   };
 
   useEffect(() => {
