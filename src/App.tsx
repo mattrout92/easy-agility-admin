@@ -82,8 +82,8 @@ type C = {
   status?: string;
 };
 
-const showID = 46;
-const ringId = 13;
+const showID = 54;
+const ringId = 11;
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }: any) {
@@ -138,10 +138,13 @@ function App() {
 
   // Effects
   useEffect(() => {
-    checkCourseDetails();
+    // Only check course details when in Queue tab (activeTab === 1)
+    if (activeTab === 1) {
+      checkCourseDetails();
+    }
     getEntries(classValue);
     // eslint-disable-next-line
-  }, [height, classValue]);
+  }, [height, classValue, activeTab]);
 
   useEffect(() => {
     getShow();
@@ -181,6 +184,9 @@ function App() {
   };
 
   const checkCourseDetails = () => {
+    // Only check course details when in Queue tab
+    if (activeTab !== 1) return;
+
     const c = show?.classes?.find((c) => c.id === classValue);
     if (
       c &&
@@ -396,7 +402,7 @@ function App() {
           <Box display="flex" alignItems="center" mb={2}>
             <Warning color="warning" sx={{ mr: 1 }} />
             <Typography variant="h6" color="warning.dark">
-              Class Mismatch Warning
+              New Class Warning
             </Typography>
           </Box>
           <Typography variant="body1" color="warning.dark" mb={2}>
@@ -407,7 +413,8 @@ function App() {
           </Typography>
           <Typography variant="body2" color="warning.dark" mb={3}>
             If this is correct, continue. If incorrect, ask the queuer to
-            unqueue everyone in this class.
+            unqueue everyone in this class and return to the correct class on
+            the queuer's device.
           </Typography>
           <Box display="flex" gap={2}>
             <Button
@@ -749,7 +756,7 @@ function App() {
         }}
         fullWidth
       >
-        {eliminated ? "Undo Eliminated" : "Eliminated"}
+        {eliminated ? "Undo Elimination" : "Eliminated"}
       </Button>
 
       <Button
@@ -1613,7 +1620,10 @@ function App() {
       </Modal>
 
       {/* Class Details Modal */}
-      <Modal open={classDetailsOpen} onClose={() => setClassDetailsOpen(false)}>
+      <Modal
+        open={classDetailsOpen && activeTab === 1}
+        onClose={() => setClassDetailsOpen(false)}
+      >
         <Box sx={modalStyle}>
           <Typography variant="h6" component="h2" mb={2}>
             Add Course Time and Distance
