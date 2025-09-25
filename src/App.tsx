@@ -95,7 +95,7 @@ function TabPanel({ children, value, index, ...other }: any) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ p: { xs: 1, md: 3 } }}>{children}</Box>}
     </div>
   );
 }
@@ -397,8 +397,15 @@ function App() {
       return null;
 
     return (
-      <Card sx={{ mb: 2, bgcolor: "#fff3cd", border: "1px solid #ffeaa7" }}>
-        <CardContent>
+      <Card
+        sx={{
+          mb: 2,
+          bgcolor: "#fff3cd",
+          border: "1px solid #ffeaa7",
+          mx: { xs: 0, md: 0 },
+        }}
+      >
+        <CardContent sx={{ p: { xs: 1, md: 2 } }}>
           <Box display="flex" alignItems="center" mb={2}>
             <Warning color="warning" sx={{ mr: 1 }} />
             <Typography variant="h6" color="warning.dark">
@@ -442,8 +449,8 @@ function App() {
   const renderCurrentCompetitor = () => {
     if (!nextEntry.id || nextEntry.id === 0) {
       return (
-        <Card sx={{ mb: 2, bgcolor: "#f8f9fa" }}>
-          <CardContent>
+        <Card sx={{ mb: 2, bgcolor: "#f8f9fa", mx: { xs: 0, md: 0 } }}>
+          <CardContent sx={{ p: { xs: 1, md: 2 } }}>
             <Typography variant="h6" color="text.secondary" textAlign="center">
               No entries currently queued to run
             </Typography>
@@ -461,8 +468,8 @@ function App() {
     }
 
     return (
-      <Card sx={{ mb: 2 }}>
-        <CardContent sx={{ p: 2 }}>
+      <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
+        <CardContent sx={{ p: { xs: 1, md: 2 } }}>
           {/* Compact Competitor Information */}
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             {/* Small Competitor Avatar */}
@@ -557,12 +564,12 @@ function App() {
     const isPairs = nextEntry.class_name.toLowerCase().includes("pairs");
 
     return (
-      <Card sx={{ p: 1 }}>
+      <Card sx={{ p: { xs: 0, md: 1 } }}>
         {" "}
-        {/* Reduced padding */}
-        <CardContent sx={{ p: 1 }}>
+        {/* No padding on mobile/tablet, minimal on laptop+ */}
+        <CardContent sx={{ p: { xs: 1, md: 1 } }}>
           {" "}
-          {/* Reduced padding */}
+          {/* Minimal padding */}
           <Typography variant="h6" mb={1} textAlign="center">
             Scoring
           </Typography>
@@ -699,78 +706,88 @@ function App() {
       {show?.classes?.find((c) => c.name === nextEntry.class_name)?.metadata?.[
         "gamblers_points"
       ] && (
-        <Grid container spacing={1} mb={2}>
-          {Object.keys(
-            show?.classes?.find((c) => c.name === nextEntry.class_name)
-              ?.metadata?.["gamblers_points"]
-          ).map((item, index) => (
-            <Grid item xs={3} key={index}>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  setPoints([
-                    ...points,
-                    parseInt(
-                      show?.classes?.find(
+        <Box sx={{ mb: 2 }}>
+          {/* Mobile-friendly button grid - 2 columns on mobile, 4 on larger screens */}
+          <Grid container spacing={1}>
+            {Object.keys(
+              show?.classes?.find((c) => c.name === nextEntry.class_name)
+                ?.metadata?.["gamblers_points"]
+            ).map((item, index) => (
+              <Grid item xs={6} sm={3} key={index}>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    setPoints([
+                      ...points,
+                      parseInt(
+                        show?.classes?.find(
+                          (c) => c.name === nextEntry.class_name
+                        )?.metadata?.["gamblers_points"][item]
+                      ),
+                    ]);
+                  }}
+                  sx={{
+                    bgcolor: (() => {
+                      const pointValue = show?.classes?.find(
                         (c) => c.name === nextEntry.class_name
-                      )?.metadata?.["gamblers_points"][item]
-                    ),
-                  ]);
-                }}
-                sx={{
-                  bgcolor: (() => {
-                    const pointValue = show?.classes?.find(
-                      (c) => c.name === nextEntry.class_name
-                    )?.metadata?.["gamblers_points"][item];
-                    return pointValue === 5
-                      ? "green"
-                      : pointValue === 4
-                      ? "orange"
-                      : pointValue === 2
-                      ? "blue"
-                      : pointValue === 1
-                      ? "purple"
-                      : "black";
-                  })(),
-                  minHeight: "80px",
-                  fontSize: "1.5rem",
-                  fontWeight: "bold",
-                }}
-              >
-                {item}
-              </Button>
-            </Grid>
-          ))}
-        </Grid>
+                      )?.metadata?.["gamblers_points"][item];
+                      return pointValue === 5
+                        ? "green"
+                        : pointValue === 4
+                        ? "orange"
+                        : pointValue === 2
+                        ? "blue"
+                        : pointValue === 1
+                        ? "purple"
+                        : "black";
+                    })(),
+                    minHeight: { xs: "60px", md: "80px" },
+                    fontSize: { xs: "1.2rem", md: "1.5rem" },
+                    fontWeight: "bold",
+                    width: "100%",
+                  }}
+                >
+                  {item}
+                </Button>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
       )}
 
-      <Button
-        variant="contained"
-        color="error"
-        onClick={() => setEliminated(!eliminated)}
-        sx={{
-          minHeight: "80px",
-          fontSize: "1.5rem",
-          mb: 2,
-          fontWeight: "bold",
-        }}
-        fullWidth
-      >
-        {eliminated ? "Undo Elimination" : "Eliminated"}
-      </Button>
+      {/* Action buttons with mobile-friendly sizing */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => setEliminated(!eliminated)}
+          sx={{
+            minHeight: { xs: "60px", md: "80px" },
+            fontSize: { xs: "1.2rem", md: "1.5rem" },
+            fontWeight: "bold",
+          }}
+          fullWidth
+        >
+          {eliminated ? "Undo Elimination" : "Eliminated"}
+        </Button>
 
-      <Button
-        variant="outlined"
-        onClick={() => {
-          const p = [...points];
-          p.pop();
-          setPoints(p);
-        }}
-        fullWidth
-        sx={{ py: 1.5, fontSize: "1.1rem" }}
-      >
-        Undo Last Point
-      </Button>
+        <Button
+          variant="outlined"
+          onClick={() => {
+            const p = [...points];
+            p.pop();
+            setPoints(p);
+          }}
+          fullWidth
+          sx={{
+            py: { xs: 1, md: 1.5 },
+            fontSize: { xs: "1rem", md: "1.1rem" },
+            minHeight: { xs: "48px", md: "56px" },
+          }}
+        >
+          Undo Last Point
+        </Button>
+      </Box>
     </Box>
   );
 
@@ -951,8 +968,8 @@ function App() {
         </Card>
       ) : (
         <Box>
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
+          <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
+            <CardContent sx={{ p: { xs: 1, md: 2 } }}>
               <Typography variant="h6" mb={2}>
                 Queue - {show?.classes?.find((c) => c.id === classValue)?.name}
               </Typography>
@@ -995,8 +1012,8 @@ function App() {
             </CardContent>
           </Card>
 
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
+          <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
+            <CardContent sx={{ p: { xs: 1, md: 2 } }}>
               <FormControl fullWidth>
                 <InputLabel>Select A Height</InputLabel>
                 <Select
@@ -1057,6 +1074,7 @@ function App() {
                       key={entry.id}
                       sx={{
                         mb: 2,
+                        mx: { xs: 0, md: 0 },
                         border: isQueued
                           ? "2px solid #1976d2"
                           : "1px solid #e0e0e0",
@@ -1091,7 +1109,9 @@ function App() {
                         </Box>
                       )}
 
-                      <CardContent sx={{ pt: isQueued ? 4 : 2 }}>
+                      <CardContent
+                        sx={{ pt: isQueued ? 4 : 2, px: { xs: 1, md: 2 } }}
+                      >
                         <Box
                           display="flex"
                           justifyContent="space-between"
@@ -1294,8 +1314,8 @@ function App() {
                   );
                 })
             ) : (
-              <Card sx={{ bgcolor: "#f8f9fa" }}>
-                <CardContent>
+              <Card sx={{ bgcolor: "#f8f9fa", mx: { xs: 0, md: 0 } }}>
+                <CardContent sx={{ p: { xs: 1, md: 2 } }}>
                   <Typography
                     variant="h6"
                     color="text.secondary"
@@ -1345,7 +1365,15 @@ function App() {
       </AppBar>
 
       {/* Main Content */}
-      <Container maxWidth="lg" sx={{ flexGrow: 1, py: 2, bgcolor: "#cfd8e3" }}>
+      <Container
+        maxWidth="lg"
+        sx={{
+          flexGrow: 1,
+          py: { xs: 0, md: 2 },
+          px: { xs: 0, md: 2 },
+          bgcolor: "#cfd8e3",
+        }}
+      >
         {/* Tab Navigation */}
         <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
           <Tabs
