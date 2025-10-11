@@ -65,6 +65,7 @@ export type Entry = {
   run_data?: string[];
   last_result_class_different?: boolean;
   picture_url?: string;
+  withdrawn?: boolean;
 };
 
 type Show = {
@@ -82,8 +83,8 @@ type C = {
   status?: string;
 };
 
-const showID = 50;
-const ringId = 12;
+const showID = 47;
+const ringId = 5;
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }: any) {
@@ -1034,9 +1035,17 @@ function App() {
           {/* Mobile-friendly queue entries */}
           <Box>
             {entries && entries.length > 0 ? (
-              // Sort entries: queued first (in queue order), then not queued, then completed runs
+              // Sort entries: queued first (in queue order), then not queued, then completed runs, then withdrawn at the bottom
               [...entries]
                 .sort((a, b) => {
+                  // Check if entry is withdrawn
+                  const aWithdrawn = !!a.withdrawn;
+                  const bWithdrawn = !!b.withdrawn;
+
+                  // Withdrawn entries always go to the bottom
+                  if (aWithdrawn && !bWithdrawn) return 1;
+                  if (!aWithdrawn && bWithdrawn) return -1;
+
                   // Check if entry has completed a run
                   const aCompleted = !!(a.time || a.eliminated || a.nfc_run);
                   const bCompleted = !!(b.time || b.eliminated || b.nfc_run);
@@ -1045,7 +1054,7 @@ function App() {
                   const aQueued = !!a.queued_at;
                   const bQueued = !!b.queued_at;
 
-                  // Priority order: queued > not queued > completed
+                  // Priority order: queued > not queued > completed > withdrawn
                   if (aQueued && !bQueued) return -1;
                   if (!aQueued && bQueued) return 1;
                   if (aCompleted && !bCompleted) return 1;
@@ -1200,6 +1209,15 @@ function App() {
                             alignItems="flex-end"
                           >
                             {/* Status chips */}
+                            {entry.withdrawn && (
+                              <Chip
+                                label="WITHDRAWN"
+                                color="warning"
+                                size="small"
+                                icon={<Warning />}
+                                sx={{ fontWeight: "bold" }}
+                              />
+                            )}
                             {isQueued && (
                               <Chip
                                 label="QUEUED"
@@ -1209,7 +1227,7 @@ function App() {
                                 sx={{ fontWeight: "bold" }}
                               />
                             )}
-                            {!isQueued && !isCompleted && (
+                            {!isQueued && !isCompleted && !entry.withdrawn && (
                               <Chip
                                 label="NOT QUEUED"
                                 color="default"
