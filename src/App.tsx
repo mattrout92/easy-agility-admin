@@ -83,8 +83,8 @@ type C = {
   status?: string;
 };
 
-const showID = 47;
-const ringId = 19;
+const showID = 66;
+const ringId = 3;
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }: any) {
