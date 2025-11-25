@@ -24,6 +24,10 @@ import {
   Chip,
   IconButton,
   Divider,
+  RadioGroup,
+  Radio,
+  FormControlLabel,
+  FormLabel,
 } from "@mui/material";
 import {
   PlayArrow,
@@ -83,8 +87,9 @@ type C = {
   status?: string;
 };
 
-const showID = 66;
-const ringId = 3;
+const showID = 64;
+const ringId = 9;
+const CLOSE_CLASS_PIN = "7359"; // PIN code required to close a class
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }: any) {
@@ -131,6 +136,7 @@ function App() {
   const [entryId, setEntryId] = useState<number>(0);
   const [bumpConfirmOpen, setBumpConfirmOpen] = useState<boolean>(false);
   const [bumpEntry, setBumpEntry] = useState<Entry>({} as Entry);
+  const [closeClassPin, setCloseClassPin] = useState<string>("");
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
@@ -1016,18 +1022,84 @@ function App() {
           <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
             <CardContent sx={{ p: { xs: 1, md: 2 } }}>
               <FormControl fullWidth>
-                <InputLabel>Select A Height</InputLabel>
-                <Select
+                <FormLabel
+                  component="legend"
+                  sx={{
+                    mb: 2,
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    color: "text.primary",
+                  }}
+                >
+                  Select A Height
+                </FormLabel>
+                <RadioGroup
+                  row
                   value={height}
                   onChange={(e) => setHeight(e.target.value)}
-                  label="Select A Height"
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
                 >
-                  {heights.map((height, index) => (
-                    <MenuItem key={index} value={height}>
-                      {height}
-                    </MenuItem>
+                  {heights.map((heightOption, index) => (
+                    <FormControlLabel
+                      key={index}
+                      value={heightOption}
+                      control={
+                        <Radio
+                          sx={{
+                            display: "none",
+                          }}
+                        />
+                      }
+                      label={
+                        <Box
+                          sx={{
+                            px: 3,
+                            py: 1.5,
+                            border: 2,
+                            borderRadius: 2,
+                            borderColor:
+                              height === heightOption
+                                ? "primary.main"
+                                : "grey.300",
+                            bgcolor:
+                              height === heightOption
+                                ? "primary.main"
+                                : "transparent",
+                            color:
+                              height === heightOption
+                                ? "white"
+                                : "text.primary",
+                            fontWeight: height === heightOption ? 600 : 500,
+                            fontSize: "0.95rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease-in-out",
+                            "&:hover": {
+                              borderColor: "primary.main",
+                              bgcolor:
+                                height === heightOption
+                                  ? "primary.dark"
+                                  : "primary.light",
+                              color: "white",
+                              transform: "translateY(-2px)",
+                              boxShadow: 2,
+                            },
+                            minWidth: { xs: "80px", sm: "100px" },
+                            textAlign: "center",
+                          }}
+                        >
+                          {heightOption}
+                        </Box>
+                      }
+                      sx={{
+                        margin: 0,
+                      }}
+                    />
                   ))}
-                </Select>
+                </RadioGroup>
               </FormControl>
             </CardContent>
           </Card>
@@ -1077,6 +1149,8 @@ function App() {
                     entry.eliminated ||
                     entry.nfc_run
                   );
+                  const isWithdrawn = !!entry.withdrawn;
+                  const isInactive = isWithdrawn || isCompleted;
 
                   return (
                     <Card
@@ -1086,13 +1160,16 @@ function App() {
                         mx: { xs: 0, md: 0 },
                         border: isQueued
                           ? "2px solid #1976d2"
+                          : isInactive
+                          ? "1px solid #d0d0d0"
                           : "1px solid #e0e0e0",
                         bgcolor: isQueued
                           ? "#f3f8ff"
-                          : isCompleted
-                          ? "#fafafa"
+                          : isInactive
+                          ? "#e8e8e8"
                           : "white",
                         position: "relative",
+                        opacity: isInactive ? 0.7 : 1,
                       }}
                     >
                       {/* Queued indicator banner */}
@@ -1570,17 +1647,52 @@ function App() {
       </Modal>
 
       {/* Close Class Modal */}
-      <Modal open={closeClassOpen} onClose={() => setCloseClassOpen(false)}>
+      <Modal
+        open={closeClassOpen}
+        onClose={() => {
+          setCloseClassOpen(false);
+          setCloseClassPin("");
+        }}
+      >
         <Box sx={modalStyle}>
           <Typography variant="h6" component="h2" mb={2}>
             Close This Class
           </Typography>
-          <Typography mb={3}>
+          <Typography mb={2}>
             Are you sure you want to close this class?
           </Typography>
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            Please enter the PIN code to confirm this action.
+          </Typography>
+          <TextField
+            fullWidth
+            type="password"
+            label="PIN Code"
+            variant="outlined"
+            value={closeClassPin}
+            onChange={(e) => setCloseClassPin(e.target.value)}
+            sx={{ mb: 3 }}
+            autoFocus
+            error={closeClassPin !== "" && closeClassPin !== CLOSE_CLASS_PIN}
+            helperText={
+              closeClassPin !== "" && closeClassPin !== CLOSE_CLASS_PIN
+                ? "Incorrect PIN code"
+                : ""
+            }
+            onKeyPress={(e) => {
+              if (e.key === "Enter" && closeClassPin === CLOSE_CLASS_PIN) {
+                closeClass();
+                setCloseClassOpen(false);
+                setCloseClassPin("");
+              }
+            }}
+          />
           <Box display="flex" gap={2}>
             <Button
-              onClick={() => setCloseClassOpen(false)}
+              onClick={() => {
+                setCloseClassOpen(false);
+                setCloseClassPin("");
+              }}
               variant="outlined"
               color="error"
               fullWidth
@@ -1589,12 +1701,16 @@ function App() {
             </Button>
             <Button
               onClick={() => {
-                closeClass();
-                setCloseClassOpen(false);
+                if (closeClassPin === CLOSE_CLASS_PIN) {
+                  closeClass();
+                  setCloseClassOpen(false);
+                  setCloseClassPin("");
+                }
               }}
               variant="contained"
               color="warning"
               fullWidth
+              disabled={closeClassPin !== CLOSE_CLASS_PIN}
             >
               Confirm
             </Button>
