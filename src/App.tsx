@@ -87,7 +87,7 @@ type C = {
   status?: string;
 };
 
-const showID = 60;
+const showID = 61;
 const ringId = 8;
 const CLOSE_CLASS_PIN = "7359"; // PIN code required to close a class
 
@@ -227,13 +227,13 @@ function App() {
 
   const closeClass = async () => {
     await axios.post(
-      `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/close`
+      `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/close`,
     );
     for (const c of show.classes) {
       if (c.status === "open" && c.id !== classValue) {
         setClassValue(c.id);
         const heightGrades = show.classes.find(
-          (cl) => cl.id === c.id
+          (cl) => cl.id === c.id,
         )?.height_grades;
         const heights = Object.keys(heightGrades);
         setHeights(heights);
@@ -246,7 +246,7 @@ function App() {
 
   const getShow = async () => {
     const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}?ring_id=${ringId}`
+      `https://api.easyagility.co.uk/shows/${showID}?ring_id=${ringId}`,
     );
     setShow(response.data);
     const s = response.data;
@@ -255,7 +255,7 @@ function App() {
         if (c.status === "open") {
           setClassValue(c.id);
           const heightGrades = s.classes.find(
-            (cl: any) => cl.id === c.id
+            (cl: any) => cl.id === c.id,
           )?.height_grades;
           const heights = Object.keys(heightGrades);
           setHeights(heights);
@@ -282,7 +282,7 @@ function App() {
 
   const getNextEntry = async () => {
     const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}/entries/next?ring_id=${ringId}`
+      `https://api.easyagility.co.uk/shows/${showID}/entries/next?ring_id=${ringId}`,
     );
     setNextEntry(response.data);
   };
@@ -291,8 +291,8 @@ function App() {
     if (height) {
       const response = await axios.get(
         `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/entries?height=${encodeURIComponent(
-          height
-        )}`
+          height,
+        )}`,
       );
       setEntries(response.data);
     }
@@ -313,7 +313,7 @@ function App() {
 
   const unqueueEntry = async (entryId: number) => {
     await axios.post(
-      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`
+      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`,
     );
     await getEntries(classValue);
   };
@@ -332,20 +332,20 @@ function App() {
       // Unqueue all competitors
       for (const entry of queuedEntries) {
         await axios.post(
-          `https://api.easyagility.co.uk/entries/${entry.id}/unqueue`
+          `https://api.easyagility.co.uk/entries/${entry.id}/unqueue`,
         );
       }
 
       // Requeue the bumped competitor first (at the top)
       await axios.post(
-        `https://api.easyagility.co.uk/entries/${entryId}/queue`
+        `https://api.easyagility.co.uk/entries/${entryId}/queue`,
       );
 
       // Requeue all other competitors in their EXACT original order
       for (const entry of queuedEntries) {
         if (entry.id !== entryId) {
           await axios.post(
-            `https://api.easyagility.co.uk/entries/${entry.id}/queue`
+            `https://api.easyagility.co.uk/entries/${entry.id}/queue`,
           );
         }
       }
@@ -359,7 +359,7 @@ function App() {
   const submitResult = async (entryId: number) => {
     setDisableSubmit(true);
     await axios.post(
-      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`
+      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`,
     );
     await axios.post(
       `https://api.easyagility.co.uk/entries/${entryId}/results`,
@@ -372,7 +372,7 @@ function App() {
         total_faults: faults.length * 5 + faults100.length * 100,
         run_data: faults,
         points: points,
-      }
+      },
     );
     setTime("");
     setPoints([]);
@@ -645,16 +645,16 @@ function App() {
                   point === 1
                     ? "red"
                     : point === 2
-                    ? "yellow"
-                    : point === 3
-                    ? "green"
-                    : point === 4
-                    ? "brown"
-                    : point === 5
-                    ? "blue"
-                    : point === 6
-                    ? "pink"
-                    : "black",
+                      ? "yellow"
+                      : point === 3
+                        ? "green"
+                        : point === 4
+                          ? "brown"
+                          : point === 5
+                            ? "blue"
+                            : point === 6
+                              ? "pink"
+                              : "black",
                 color: [2, 6].includes(point) ? "black" : "white",
                 minHeight: "80px",
                 fontSize: "1.5rem",
@@ -718,7 +718,7 @@ function App() {
           <Grid container spacing={1}>
             {Object.keys(
               show?.classes?.find((c) => c.name === nextEntry.class_name)
-                ?.metadata?.["gamblers_points"]
+                ?.metadata?.["gamblers_points"],
             ).map((item, index) => (
               <Grid item xs={6} sm={3} key={index}>
                 <Button
@@ -728,25 +728,25 @@ function App() {
                       ...points,
                       parseInt(
                         show?.classes?.find(
-                          (c) => c.name === nextEntry.class_name
-                        )?.metadata?.["gamblers_points"][item]
+                          (c) => c.name === nextEntry.class_name,
+                        )?.metadata?.["gamblers_points"][item],
                       ),
                     ]);
                   }}
                   sx={{
                     bgcolor: (() => {
                       const pointValue = show?.classes?.find(
-                        (c) => c.name === nextEntry.class_name
+                        (c) => c.name === nextEntry.class_name,
                       )?.metadata?.["gamblers_points"][item];
                       return pointValue === 5
                         ? "green"
                         : pointValue === 4
-                        ? "orange"
-                        : pointValue === 2
-                        ? "blue"
-                        : pointValue === 1
-                        ? "purple"
-                        : "black";
+                          ? "orange"
+                          : pointValue === 2
+                            ? "blue"
+                            : pointValue === 1
+                              ? "purple"
+                              : "black";
                     })(),
                     minHeight: { xs: "60px", md: "80px" },
                     fontSize: { xs: "1.2rem", md: "1.5rem" },
@@ -955,7 +955,7 @@ function App() {
                 onChange={(e) => {
                   setClassValue(e.target.value as any);
                   const heightGrades = show.classes.find(
-                    (c) => c.id === e.target.value
+                    (c) => c.id === e.target.value,
                   )?.height_grades;
                   const heights = Object.keys(heightGrades);
                   setHeights(heights);
@@ -1161,13 +1161,13 @@ function App() {
                         border: isQueued
                           ? "2px solid #1976d2"
                           : isInactive
-                          ? "1px solid #d0d0d0"
-                          : "1px solid #e0e0e0",
+                            ? "1px solid #d0d0d0"
+                            : "1px solid #e0e0e0",
                         bgcolor: isQueued
                           ? "#f3f8ff"
                           : isInactive
-                          ? "#e8e8e8"
-                          : "white",
+                            ? "#e8e8e8"
+                            : "white",
                         position: "relative",
                         opacity: isInactive ? 0.7 : 1,
                       }}
@@ -1272,7 +1272,7 @@ function App() {
                                   >
                                     ⏰ Queued at:{" "}
                                     {new Date(
-                                      entry.queued_at!
+                                      entry.queued_at!,
                                     ).toLocaleTimeString()}
                                   </Typography>
                                 )}
@@ -1348,8 +1348,8 @@ function App() {
                               isQueued
                                 ? "primary"
                                 : isCompleted
-                                ? "error"
-                                : "success"
+                                  ? "error"
+                                  : "success"
                             }
                             onClick={() => {
                               setQueuedEntry(entry);
