@@ -28,6 +28,7 @@ import {
   Radio,
   FormControlLabel,
   FormLabel,
+  Checkbox,
 } from "@mui/material";
 import {
   PlayArrow,
@@ -70,6 +71,7 @@ export type Entry = {
   last_result_class_different?: boolean;
   picture_url?: string;
   withdrawn?: boolean;
+  is_wish_ticket?: boolean;
 };
 
 type Show = {
@@ -87,9 +89,10 @@ type C = {
   status?: string;
 };
 
-const showID = 61;
-const ringId = 8;
+const showID = 52;
+const ringId = 3;
 const CLOSE_CLASS_PIN = "7359"; // PIN code required to close a class
+const IS_WISHTICKET_SHOW = true;
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }: any) {
@@ -137,6 +140,7 @@ function App() {
   const [bumpConfirmOpen, setBumpConfirmOpen] = useState<boolean>(false);
   const [bumpEntry, setBumpEntry] = useState<Entry>({} as Entry);
   const [closeClassPin, setCloseClassPin] = useState<string>("");
+  const [isWishTicket, setIsWishTicket] = useState<boolean>(false);
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
@@ -306,8 +310,10 @@ function App() {
     // eslint-disable-next-line
   }, [classValue, height]);
 
-  const queueEntry = async (entryId: number) => {
-    await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`);
+  const queueEntry = async (entryId: number, isWishTicket: boolean = false) => {
+    await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`, {
+      is_wish_ticket: isWishTicket,
+    });
     await getEntries(classValue);
   };
 
@@ -372,6 +378,7 @@ function App() {
         total_faults: faults.length * 5 + faults100.length * 100,
         run_data: faults,
         points: points,
+        is_wish_ticket: nextEntry.is_wish_ticket,
       },
     );
     setTime("");
@@ -477,6 +484,19 @@ function App() {
     return (
       <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
         <CardContent sx={{ p: { xs: 1, md: 2 } }}>
+          {/* Wish Ticket Banner - Show prominently at the top */}
+          {nextEntry.is_wish_ticket && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold">
+                🎫 WISH TICKET - Second Attempt
+              </Typography>
+              <Typography variant="body2">
+                This competitor is running their wish ticket (second attempt) in
+                this class.
+              </Typography>
+            </Alert>
+          )}
+
           {/* Compact Competitor Information */}
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             {/* Small Competitor Avatar */}
@@ -537,6 +557,14 @@ function App() {
 
           {/* Compact Status and Alerts */}
           <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
+            {nextEntry.is_wish_ticket && (
+              <Chip
+                label="Wish Ticket"
+                color="info"
+                size="small"
+                sx={{ fontWeight: "bold" }}
+              />
+            )}
             {eliminated && (
               <Chip
                 label="Eliminated"
@@ -1616,10 +1644,31 @@ function App() {
               ***Please note this competitor is autistic.***
             </Alert>
           )}
+
+          {/* Wish Ticket Checkbox - Only show when IS_WISHTICKET_SHOW is true, competitor has already run, and we're queueing (not unqueueing) */}
+          {IS_WISHTICKET_SHOW &&
+            !queuedEntry.queued_at &&
+            (queuedEntry.time ||
+              queuedEntry.eliminated ||
+              queuedEntry.nfc_run) && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={isWishTicket}
+                    onChange={(e) => setIsWishTicket(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label="This is a Wish Ticket (second attempt)"
+                sx={{ mb: 2 }}
+              />
+            )}
+
           <Box display="flex" gap={2}>
             <Button
               onClick={() => {
                 setQueuedEntry({} as Entry);
+                setIsWishTicket(false);
                 setQueueConfirmOpen(false);
               }}
               variant="outlined"
@@ -1632,8 +1681,9 @@ function App() {
               onClick={() => {
                 queuedEntry.queued_at
                   ? unqueueEntry(queuedEntry.id)
-                  : queueEntry(queuedEntry.id);
+                  : queueEntry(queuedEntry.id, isWishTicket);
                 setQueuedEntry({} as Entry);
+                setIsWishTicket(false);
                 setQueueConfirmOpen(false);
               }}
               variant="contained"
