@@ -89,10 +89,10 @@ type C = {
   status?: string;
 };
 
-const showID = 52;
-const ringId = 3;
+const showID = 62;
+const ringId = 8;
 const CLOSE_CLASS_PIN = "7359"; // PIN code required to close a class
-const IS_WISHTICKET_SHOW = true;
+const IS_WISHTICKET_SHOW = false;
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }: any) {
