@@ -14,7 +14,34 @@ import {
   Snackbar,
   TextField,
   Typography,
+  AppBar,
+  Toolbar,
+  Container,
+  Card,
+  CardContent,
+  Tabs,
+  Tab,
+  Chip,
+  IconButton,
+  Divider,
+  RadioGroup,
+  Radio,
+  FormControlLabel,
+  FormLabel,
+  Checkbox,
 } from "@mui/material";
+import {
+  PlayArrow,
+  Queue,
+  Score,
+  Settings,
+  Refresh,
+  Warning,
+  CheckCircle,
+  Cancel,
+  Timer,
+  Speed,
+} from "@mui/icons-material";
 import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
 
@@ -42,6 +69,9 @@ export type Entry = {
   total_faults?: number;
   run_data?: string[];
   last_result_class_different?: boolean;
+  picture_url?: string;
+  withdrawn?: boolean;
+  is_wish_ticket?: boolean;
 };
 
 type Show = {
@@ -59,10 +89,30 @@ type C = {
   status?: string;
 };
 
-const showID = 46;
+const showID = 69;
 const ringId = 14;
+const CLOSE_CLASS_PIN = "7359"; // PIN code required to close a class
+const IS_WISHTICKET_SHOW = false;
 
+// Tab Panel Component
+function TabPanel({ children, value, index, ...other }: any) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: { xs: 1, md: 3 } }}>{children}</Box>}
+    </div>
+  );
+}
+
+// Main App Component
 function App() {
+  // State management
+  const [activeTab, setActiveTab] = useState(0);
   const [faults, setFaults] = useState<string[]>([]);
   const [faults100, setFaults100] = useState<string[]>([]);
   const [eliminated, setEliminated] = useState<boolean>(false);
@@ -87,17 +137,25 @@ function App() {
   const [changeHandlerName, setChangeHandlerName] = useState<boolean>(false);
   const [newHandlerName, setNewHandlerName] = useState<string>("");
   const [entryId, setEntryId] = useState<number>(0);
+  const [bumpConfirmOpen, setBumpConfirmOpen] = useState<boolean>(false);
+  const [bumpEntry, setBumpEntry] = useState<Entry>({} as Entry);
+  const [closeClassPin, setCloseClassPin] = useState<string>("");
+  const [isWishTicket, setIsWishTicket] = useState<boolean>(false);
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
   const [show, setShow] = useState<Show>({} as Show);
   const [heights, setHeights] = useState<string[]>([]);
 
+  // Effects
   useEffect(() => {
-    checkCourseDetails();
+    // Only check course details when in Queue tab (activeTab === 1)
+    if (activeTab === 1) {
+      checkCourseDetails();
+    }
     getEntries(classValue);
     // eslint-disable-next-line
-  }, [height, classValue]);
+  }, [height, classValue, activeTab]);
 
   useEffect(() => {
     getShow();
@@ -105,29 +163,22 @@ function App() {
     // eslint-disable-next-line
   }, []);
 
+  // Business Logic Functions (preserved from original)
   const handleChangeTime = (event: any) => {
     let inputValue = event.target.value;
-
-    // Remove non-numeric characters
     inputValue = inputValue.replace(/[^0-9]/g, "");
-
     if (inputValue === "") {
       setTime("0.000");
       return;
     }
-
-    // Format the number to three decimal places
     let numericValue = parseInt(inputValue, 10);
     numericValue = numericValue / 1000;
-
-    // Convert the number to a string with exactly three decimal places
     const formattedValue = numericValue.toFixed(3);
     setTime(formattedValue);
   };
 
   const setClassMessage = async () => {
     const c = show?.classes?.find((c) => c.id === classValue);
-
     if (c) {
       await axios.post(`https://api.easyagility.co.uk/add-class-message`, {
         message: `${c.name} - ${message}`,
@@ -144,10 +195,10 @@ function App() {
   };
 
   const checkCourseDetails = () => {
+    // Only check course details when in Queue tab
+    if (activeTab !== 1) return;
+
     const c = show?.classes?.find((c) => c.id === classValue);
-
-    console.log(c?.metadata);
-
     if (
       c &&
       (!c?.metadata ||
@@ -174,24 +225,20 @@ function App() {
       course_time: courseTime,
       course_distance: courseDistance,
     });
-
     await getShow();
-
     setClassDetailsOpen(false);
   };
 
   const closeClass = async () => {
     await axios.post(
-      `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/close`
+      `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/close`,
     );
-
     for (const c of show.classes) {
       if (c.status === "open" && c.id !== classValue) {
         setClassValue(c.id);
         const heightGrades = show.classes.find(
-          (cl) => cl.id === c.id
+          (cl) => cl.id === c.id,
         )?.height_grades;
-
         const heights = Object.keys(heightGrades);
         setHeights(heights);
         setHeight(heights[0]);
@@ -203,9 +250,8 @@ function App() {
 
   const getShow = async () => {
     const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}?ring_id=${ringId}`
+      `https://api.easyagility.co.uk/shows/${showID}?ring_id=${ringId}`,
     );
-
     setShow(response.data);
     const s = response.data;
     if (classValue === 0 && s) {
@@ -213,9 +259,8 @@ function App() {
         if (c.status === "open") {
           setClassValue(c.id);
           const heightGrades = s.classes.find(
-            (cl: any) => cl.id === c.id
+            (cl: any) => cl.id === c.id,
           )?.height_grades;
-
           const heights = Object.keys(heightGrades);
           setHeights(heights);
           setHeight(heights[0]);
@@ -228,9 +273,6 @@ function App() {
       const heights = Object.keys(heightGrades);
       setHeights(heights);
       setHeight(heights[0]);
-
-      console.log(response.data?.classes[0]);
-
       if (
         !response.data?.classes[0].metadata ||
         !response.data?.classes[0].metadata[heights[0]] ||
@@ -242,30 +284,10 @@ function App() {
     }
   };
 
-  // const generateLeaguePoints = async () => {
-  //   try {
-  //     const heightGrades = show.classes.find((c) => c.id === classValue)
-  //       ?.height_grades as any;
-  //     const grades = heightGrades[height];
-
-  //     for (const g of grades) {
-  //       await axios.post(
-  //         `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/league-points?height=${encodeURIComponent(
-  //           height
-  //         )}&grades=${encodeURIComponent(g.join(","))}`
-  //       );
-  //     }
-  //     setSnackbarOpen(true);
-  //   } catch (e) {
-  //     console.log(e);
-  //   }
-  // };
-
   const getNextEntry = async () => {
     const response = await axios.get(
-      `https://api.easyagility.co.uk/shows/${showID}/entries/next?ring_id=${ringId}`
+      `https://api.easyagility.co.uk/shows/${showID}/entries/next?ring_id=${ringId}`,
     );
-
     setNextEntry(response.data);
   };
 
@@ -273,10 +295,9 @@ function App() {
     if (height) {
       const response = await axios.get(
         `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/entries?height=${encodeURIComponent(
-          height
-        )}`
+          height,
+        )}`,
       );
-
       setEntries(response.data);
     }
   };
@@ -289,24 +310,63 @@ function App() {
     // eslint-disable-next-line
   }, [classValue, height]);
 
-  const queueEntry = async (entryId: number) => {
-    await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`);
+  const queueEntry = async (entryId: number, isWishTicket: boolean = false) => {
+    await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`, {
+      is_wish_ticket: isWishTicket,
+    });
     await getEntries(classValue);
   };
 
   const unqueueEntry = async (entryId: number) => {
     await axios.post(
-      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`
+      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`,
     );
     await getEntries(classValue);
+  };
+
+  const bumpToTop = async (entryId: number) => {
+    try {
+      // Get all currently queued entries and sort them by queued_at timestamp to preserve their exact order
+      const queuedEntries = entries
+        .filter((entry) => entry.queued_at)
+        .sort((a, b) => {
+          const aTime = new Date(a.queued_at!).getTime();
+          const bTime = new Date(b.queued_at!).getTime();
+          return aTime - bTime; // Sort by original queue order (FIFO)
+        });
+
+      // Unqueue all competitors
+      for (const entry of queuedEntries) {
+        await axios.post(
+          `https://api.easyagility.co.uk/entries/${entry.id}/unqueue`,
+        );
+      }
+
+      // Requeue the bumped competitor first (at the top)
+      await axios.post(
+        `https://api.easyagility.co.uk/entries/${entryId}/queue`,
+      );
+
+      // Requeue all other competitors in their EXACT original order
+      for (const entry of queuedEntries) {
+        if (entry.id !== entryId) {
+          await axios.post(
+            `https://api.easyagility.co.uk/entries/${entry.id}/queue`,
+          );
+        }
+      }
+
+      await getEntries(classValue);
+    } catch (error) {
+      console.error("Error bumping entry to top:", error);
+    }
   };
 
   const submitResult = async (entryId: number) => {
     setDisableSubmit(true);
     await axios.post(
-      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`
+      `https://api.easyagility.co.uk/entries/${entryId}/unqueue`,
     );
-
     await axios.post(
       `https://api.easyagility.co.uk/entries/${entryId}/results`,
       {
@@ -318,1242 +378,1669 @@ function App() {
         total_faults: faults.length * 5 + faults100.length * 100,
         run_data: faults,
         points: points,
-      }
+        is_wish_ticket: nextEntry.is_wish_ticket,
+      },
     );
-
     setTime("");
     setPoints([]);
     setEliminated(false);
     setNFCRun(false);
     setFaults([]);
-
     await getNextEntry();
-
     setDisableSubmit(false);
     setSubmitResultOpen(false);
   };
 
-  const columns = [
-    {
-      field: "partnership",
-      headerName: "Entry",
-      width: "150",
-      renderCell: (params: any) => {
-        return (
-          <Box
-            sx={{
-              maxHeight: "inherit",
-              width: "100%",
-              whiteSpace: "initial",
-              lineHeight: "16px",
-            }}
-          >
-            {params.value}
+  // Note: DataGrid columns removed as we're now using a mobile-friendly card layout
+
+  // Tab change handler
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+    if (newValue === 0) {
+      setScrime(true);
+      setQueue(false);
+    } else if (newValue === 1) {
+      setQueue(true);
+      setScrime(false);
+    }
+  };
+
+  // Render warning for different class
+  const renderClassWarning = () => {
+    if (!nextEntry.last_result_class_different || nextEntry.id === 0)
+      return null;
+
+    return (
+      <Card
+        sx={{
+          mb: 2,
+          bgcolor: "#fff3cd",
+          border: "1px solid #ffeaa7",
+          mx: { xs: 0, md: 0 },
+        }}
+      >
+        <CardContent sx={{ p: { xs: 1, md: 2 } }}>
+          <Box display="flex" alignItems="center" mb={2}>
+            <Warning color="warning" sx={{ mr: 1 }} />
+            <Typography variant="h6" color="warning.dark">
+              New Class Warning
+            </Typography>
           </Box>
-        );
-      },
-    },
-    {
-      type: "actions",
-      width: 200,
-      getActions: (params: any) => {
-        return [
-          <>
+          <Typography variant="body1" color="warning.dark" mb={2}>
+            The last entry was in a different class. Please review the details:
+          </Typography>
+          <Typography variant="h6" mb={2}>
+            {nextEntry.class_name} - <strong>{nextEntry.partnership}</strong>
+          </Typography>
+          <Typography variant="body2" color="warning.dark" mb={3}>
+            If this is correct, continue. If incorrect, ask the queuer to
+            unqueue everyone in this class and return to the correct class on
+            the queuer's device.
+          </Typography>
+          <Box display="flex" gap={2}>
             <Button
-              fullWidth
-              variant="outlined"
-              color={
-                params.row.withdrawn
-                  ? "error"
-                  : params.row.queued_at
-                  ? "primary"
-                  : params.row.time ||
-                    params.row.eliminated ||
-                    params.row?.nfc_run
-                  ? "error"
-                  : "success"
-              }
+              variant="contained"
+              color="success"
               onClick={() => {
-                setQueuedEntry(params.row);
-                setQueueConfirmOpen(true);
+                setNextEntry({
+                  ...nextEntry,
+                  last_result_class_different: false,
+                });
               }}
             >
-              {params.row.withdrawn
-                ? "Withdrawn"
-                : params.row.queued_at
-                ? "Unqueue"
-                : "Queue"}
+              Continue
             </Button>
-          </>,
-        ];
-      },
-    },
-    {
-      field: "time",
-      headerName: "Run?",
-      type: "boolean",
-      valueGetter: ({ value, row }: any) =>
-        value ? true : row?.eliminated ? true : row?.nfc_run ? true : false,
-    },
-    {
-      field: "",
-      width: 400,
-      renderCell: (params: any) => {
-        return [
-          <>
+            <Button variant="outlined" onClick={() => getNextEntry()}>
+              Refresh
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Render current competitor info
+  const renderCurrentCompetitor = () => {
+    if (!nextEntry.id || nextEntry.id === 0) {
+      return (
+        <Card sx={{ mb: 2, bgcolor: "#f8f9fa", mx: { xs: 0, md: 0 } }}>
+          <CardContent sx={{ p: { xs: 1, md: 2 } }}>
+            <Typography variant="h6" color="text.secondary" textAlign="center">
+              No entries currently queued to run
+            </Typography>
             <Button
-              variant="outlined"
-              color={"success"}
-              onClick={() => {
-                setChangeHandlerName(true);
-                setNewHandlerName("");
-                setEntryId(params.row.id);
-              }}
+              variant="contained"
+              color="primary"
+              onClick={() => getNextEntry()}
+              sx={{ mt: 2 }}
             >
-              Change Handler Name
+              Refresh
             </Button>
-          </>,
-        ];
-      },
-    },
-  ];
+          </CardContent>
+        </Card>
+      );
+    }
 
-  return (
-    <Box sx={{ display: "flex", textAlign: "center" }}>
-      <CssBaseline />
-
-      {scrime ? (
-        <Grid padding={2} container spacing={2} rowSpacing={3}>
-          {nextEntry.last_result_class_different && nextEntry.id !== 0 ? (
-            <Box padding={5}>
-              <Typography color="red" variant="h5">
-                WARNING: The last entry was in a different class. Please review
-                the details of this entry below:
+    return (
+      <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
+        <CardContent sx={{ p: { xs: 1, md: 2 } }}>
+          {/* Wish Ticket Banner - Show prominently at the top */}
+          {nextEntry.is_wish_ticket && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold">
+                🎫 WISH TICKET - Second Attempt
               </Typography>
-              <Typography variant="h6">
-                {nextEntry.class_name} -{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {nextEntry.partnership}
-                </span>
+              <Typography variant="body2">
+                This competitor is running their wish ticket (second attempt) in
+                this class.
               </Typography>
-              <Typography color="red" variant="h5">
-                If this is correct, please press the button below to continue.
-              </Typography>
-              <Typography color="red" variant="h5">
-                If this is incorrect, ask the queuer to unqueue everyone in this
-                class, exit the class and select the correct class. If you
-                continue then the results will be entered in the wrong class.
-              </Typography>
-              <Button
-                style={{ minWidth: "100%", marginTop: "30px" }}
-                variant="contained"
-                onClick={() => {
-                  setNextEntry({
-                    ...nextEntry,
-                    last_result_class_different: false,
-                  });
-                }}
-              >
-                Continue
-              </Button>
-              <Button
-                color="success"
-                onClick={() => {
-                  getNextEntry();
-                }}
-                style={{ minWidth: "100%", marginTop: "30px" }}
-                variant="contained"
-              >
-                Refresh
-              </Button>
-            </Box>
-          ) : (
-            <>
-              <Grid item xs={12}>
-                <Button
-                  onClick={() => {
-                    getNextEntry();
-                    setScrime(false);
-                    setQueue(true);
-                  }}
-                  fullWidth
-                  color="secondary"
-                  variant="contained"
-                >
-                  Go To Queue
-                </Button>
-              </Grid>
-              {nextEntry.id && nextEntry.id !== 0 ? (
-                <>
-                  <Grid item xs={12}>
-                    <Typography variant="h6">
-                      {nextEntry.class_name} -{" "}
-                      <span style={{ fontWeight: "bold" }}>
-                        {nextEntry.partnership}
-                      </span>
-                    </Typography>
-                  </Grid>
-
-                  {nextEntry.partnership?.includes("Olivia Wood") && (
-                    <Grid item xs={12}>
-                      <Typography variant="h6" color="red">
-                        ***Please note this competitor is autistic.***
-                      </Typography>
-                    </Grid>
-                  )}
-
-                  {eliminated && (
-                    <Grid item xs={12}>
-                      <Typography color="red" variant="h6">
-                        Eliminated
-                      </Typography>
-                    </Grid>
-                  )}
-                  {nfcRun && (
-                    <Grid item xs={12}>
-                      <Typography variant="h6">NFC</Typography>
-                    </Grid>
-                  )}
-
-                  {nextEntry.class_name.toLowerCase().includes("snooker") ? (
-                    <>
-                      <Grid item xs={12}>
-                        <Typography variant="h5">
-                          Total Points -{" "}
-                          {points.reduce((partialSum, a) => partialSum + a, 0)}
-                        </Typography>
-                        <Typography variant="h6">
-                          Points - {points.join(", ")}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          type="number"
-                          label="Competitor Time"
-                          value={time}
-                          onChange={(e) => {
-                            try {
-                              handleChangeTime(e);
-                            } catch (e) {}
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.push(1);
-                            setPoints(p);
-                          }}
-                          fullWidth
-                          disabled={eliminated}
-                          variant="contained"
-                          sx={{ bgcolor: "red" }}
-                        >
-                          1
-                        </Button>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.push(2);
-                            setPoints(p);
-                          }}
-                          disabled={eliminated}
-                          fullWidth
-                          variant="contained"
-                          sx={{ bgcolor: "yellow", color: "black" }}
-                        >
-                          2
-                        </Button>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.push(3);
-                            setPoints(p);
-                          }}
-                          disabled={eliminated}
-                          fullWidth
-                          variant="contained"
-                          sx={{ bgcolor: "green" }}
-                        >
-                          3
-                        </Button>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.push(4);
-                            setPoints(p);
-                          }}
-                          disabled={eliminated}
-                          fullWidth
-                          variant="contained"
-                          sx={{ bgcolor: "brown" }}
-                        >
-                          4
-                        </Button>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.push(5);
-                            setPoints(p);
-                          }}
-                          disabled={eliminated}
-                          fullWidth
-                          variant="contained"
-                          sx={{ bgcolor: "blue" }}
-                        >
-                          5
-                        </Button>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.push(6);
-                            setPoints(p);
-                          }}
-                          disabled={eliminated}
-                          fullWidth
-                          variant="contained"
-                          sx={{ bgcolor: "pink", color: "black" }}
-                        >
-                          6
-                        </Button>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.push(7);
-                            setPoints(p);
-                          }}
-                          disabled={eliminated}
-                          fullWidth
-                          variant="contained"
-                          sx={{ bgcolor: "black" }}
-                        >
-                          7
-                        </Button>
-                      </Grid>
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            setEliminated(!eliminated);
-                          }}
-                          fullWidth
-                          variant="contained"
-                          color="error"
-                        >
-                          E
-                        </Button>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.pop();
-                            setPoints(p);
-                          }}
-                          fullWidth
-                          variant="contained"
-                        >
-                          UNDO
-                        </Button>
-                      </Grid>
-                    </>
-                  ) : nextEntry.class_name
-                      .toLowerCase()
-                      .includes("gamblers") ? (
-                    <>
-                      <Grid item xs={12}>
-                        <Typography variant="h5">
-                          Total Points -{" "}
-                          {points.reduce((partialSum, a) => partialSum + a, 0)}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          type="number"
-                          label="Competitor Time"
-                          value={time}
-                          onChange={(e) => {
-                            try {
-                              handleChangeTime(e);
-                            } catch (e) {}
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          type="number"
-                          label="Points"
-                          value={points.reduce(
-                            (partialSum, a) => partialSum + a,
-                            0
-                          )}
-                          onChange={(e) => {
-                            setPoints([parseInt(e.target.value) || 0]);
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Button
-                          sx={{ minHeight: "50px", fontSize: 24 }}
-                          disabled={
-                            !nfcRun &&
-                            !eliminated &&
-                            (time === "" || time === "0" || time === "0.000")
-                          }
-                          fullWidth
-                          color="success"
-                          variant="contained"
-                          onClick={() => setSubmitResultOpen(true)}
-                        >
-                          Submit
-                        </Button>
-                      </Grid>
-                      {show?.classes?.find(
-                        (c) => c.name === nextEntry.class_name
-                      )?.metadata?.["gamblers_points"] &&
-                        Object.keys(
-                          show?.classes?.find(
-                            (c) => c.name === nextEntry.class_name
-                          )?.metadata?.["gamblers_points"]
-                        ).map((item, index) => (
-                          <Grid item xs={3} key={index}>
-                            <Button
-                              sx={{
-                                bgcolor:
-                                  show?.classes?.find(
-                                    (c) => c.name === nextEntry.class_name
-                                  )?.metadata?.["gamblers_points"][item] === 5
-                                    ? "green"
-                                    : show?.classes?.find(
-                                        (c) => c.name === nextEntry.class_name
-                                      )?.metadata?.["gamblers_points"][item] ===
-                                      4
-                                    ? "orange"
-                                    : show?.classes?.find(
-                                        (c) => c.name === nextEntry.class_name
-                                      )?.metadata?.["gamblers_points"][item] ===
-                                      2
-                                    ? "blue"
-                                    : show?.classes?.find(
-                                        (c) => c.name === nextEntry.class_name
-                                      )?.metadata?.["gamblers_points"][item] ===
-                                      1
-                                    ? "purple"
-                                    : "black",
-                              }}
-                              onClick={() => {
-                                setPoints([
-                                  ...points,
-                                  parseInt(
-                                    show?.classes?.find(
-                                      (c) => c.name === nextEntry.class_name
-                                    )?.metadata?.["gamblers_points"][item]
-                                  ),
-                                ]);
-                              }}
-                              fullWidth
-                              variant="contained"
-                            >
-                              {item}
-                            </Button>
-                          </Grid>
-                        ))}
-
-                      <Grid item xs={3}>
-                        <Button
-                          onClick={() => {
-                            setEliminated(!eliminated);
-                          }}
-                          fullWidth
-                          variant="contained"
-                          color="error"
-                        >
-                          E
-                        </Button>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Button
-                          onClick={() => {
-                            const p = [...points];
-                            p.pop();
-                            setPoints(p);
-                          }}
-                          fullWidth
-                          variant="contained"
-                        >
-                          UNDO
-                        </Button>
-                      </Grid>
-                    </>
-                  ) : (
-                    <>
-                      {!eliminated && (
-                        <Grid item xs={12}>
-                          <Typography variant="h6">
-                            Faults:{" "}
-                            {faults.length === 0 && faults100.length === 0
-                              ? "None"
-                              : faults.join(", ") + " " + faults100.join(", ")}
-                          </Typography>
-                        </Grid>
-                      )}
-
-                      <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          inputProps={{
-                            inputMode: "decimal",
-                          }}
-                          label="Competitor Time"
-                          value={time}
-                          onChange={(e) => {
-                            try {
-                              handleChangeTime(e);
-                            } catch (e) {}
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Button
-                          sx={{ minHeight: "50px", fontSize: 24 }}
-                          disabled={
-                            !nfcRun &&
-                            !eliminated &&
-                            (time === "" || time === "0" || time === "0.000")
-                          }
-                          fullWidth
-                          color="success"
-                          variant="contained"
-                          onClick={() => setSubmitResultOpen(true)}
-                        >
-                          Submit
-                        </Button>
-                      </Grid>
-
-                      <Grid item xs={6}>
-                        <Button
-                          onClick={() => {
-                            setFaults([...faults, "R"]);
-                          }}
-                          fullWidth
-                          variant="contained"
-                          sx={{
-                            bgcolor: "green",
-                            minHeight: "100px",
-                            fontSize: 30,
-                          }}
-                        >
-                          R
-                        </Button>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Button
-                          onClick={() => {
-                            setFaults([...faults, "5"]);
-                          }}
-                          fullWidth
-                          variant="contained"
-                          sx={{
-                            bgcolor: "green",
-                            minHeight: "100px",
-                            fontSize: 30,
-                          }}
-                        >
-                          5
-                        </Button>
-                      </Grid>
-                      {nextEntry.class_name.toLowerCase().includes("pairs") && (
-                        <Grid item xs={12}>
-                          <Button
-                            onClick={() => {
-                              setFaults100([...faults100, "100"]);
-                            }}
-                            fullWidth
-                            variant="contained"
-                            sx={{
-                              bgcolor: "green",
-                              minHeight: "100px",
-                              fontSize: 30,
-                            }}
-                          >
-                            100F
-                          </Button>
-                        </Grid>
-                      )}
-                      <Grid
-                        onClick={() => {
-                          setFaults([...faults, "H"]);
-                        }}
-                        item
-                        xs={6}
-                      >
-                        <Button
-                          sx={{
-                            bgcolor: "gray",
-                            color: "white",
-                            minHeight: "100px",
-                            fontSize: 30,
-                          }}
-                          fullWidth
-                          variant="contained"
-                        >
-                          H
-                        </Button>
-                      </Grid>
-                      <Grid
-                        onClick={() => {
-                          setNFCRun(!nfcRun);
-                        }}
-                        item
-                        xs={6}
-                      >
-                        <Button
-                          sx={{
-                            bgcolor: "blue",
-                            minHeight: "100px",
-                            fontSize: 24,
-                          }}
-                          fullWidth
-                          variant="contained"
-                        >
-                          {nfcRun ? "Undo NFC" : "NFC"}
-                        </Button>
-                      </Grid>
-                      <Grid
-                        onClick={() => {
-                          setEliminated(!eliminated);
-                        }}
-                        item
-                        xs={12}
-                      >
-                        <Button
-                          sx={{
-                            bgcolor: "red",
-                            minHeight: "100px",
-                            fontSize: 30,
-                          }}
-                          fullWidth
-                          variant="contained"
-                        >
-                          {eliminated ? "Undo E" : "E"}
-                        </Button>
-                      </Grid>
-                      <Grid
-                        onClick={() => {
-                          const f = [...faults];
-                          f.pop();
-                          setFaults(f);
-                        }}
-                        item
-                        xs={12}
-                      >
-                        <Button fullWidth variant="contained">
-                          Undo Last Fault
-                        </Button>
-                      </Grid>
-                      {nextEntry.class_name.toLowerCase().includes("pairs") && (
-                        <Grid
-                          onClick={() => {
-                            const f = [...faults100];
-                            f.pop();
-                            setFaults100(f);
-                          }}
-                          item
-                          xs={12}
-                        >
-                          <Button fullWidth variant="contained">
-                            Undo Last 100 Fault
-                          </Button>
-                        </Grid>
-                      )}
-                    </>
-                  )}
-                  <Grid item xs={12}>
-                    <Button
-                      disabled={
-                        !nfcRun &&
-                        !eliminated &&
-                        (time === "" || time === "0" || time === "0.000")
-                      }
-                      fullWidth
-                      color="success"
-                      variant="contained"
-                      onClick={() => setSubmitResultOpen(true)}
-                    >
-                      Submit
-                    </Button>
-                  </Grid>
-                  <Modal
-                    open={submitResultOpen}
-                    onClose={() => setSubmitResultOpen(false)}
-                  >
-                    <Box sx={modalStyle}>
-                      <Typography
-                        id="modal-modal-title"
-                        variant="h6"
-                        component="h2"
-                      >
-                        Submit This Result
-                      </Typography>
-                      <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                        Are you sure you want to submit this result
-                      </Typography>
-                      <Typography fontWeight={"bold"}>Time: {time}</Typography>
-
-                      <Button
-                        onClick={() => {
-                          submitResult(nextEntry.id);
-                        }}
-                        disabled={disableSubmit}
-                        style={{ minWidth: "100%", marginTop: "30px" }}
-                        variant="contained"
-                        color="success"
-                      >
-                        Confirm
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setSubmitResultOpen(false);
-                        }}
-                        style={{ minWidth: "100%", marginTop: "30px" }}
-                        variant="contained"
-                        color="error"
-                      >
-                        Cancel
-                      </Button>
-                    </Box>
-                  </Modal>
-                </>
-              ) : (
-                <>
-                  <Grid item xs={12}>
-                    <Typography variant="h6">
-                      There are currently no entries queued to run.
-                    </Typography>
-                    <Button
-                      color="success"
-                      onClick={() => {
-                        getNextEntry();
-                      }}
-                      style={{ minWidth: "100%", marginTop: "30px" }}
-                      variant="contained"
-                    >
-                      Refresh
-                    </Button>
-                  </Grid>
-                </>
-              )}
-            </>
+            </Alert>
           )}
-        </Grid>
-      ) : queue ? (
-        <>
-          {classValue === 0 ? (
-            <Box padding={2} textAlign={"center"}>
-              <Typography marginTop={5} marginBottom={5}>
-                Please select a class to view the queue
-              </Typography>
-              <FormControl fullWidth>
-                <InputLabel id={`class-select-label`}>
-                  Select A Class
-                </InputLabel>
-                <Select
-                  labelId={`class-select-label`}
-                  id={`class-select`}
-                  label="Select A Class"
-                  name="select_class"
-                  value={classValue}
-                  onChange={(e) => {
-                    setClassValue(e.target.value as any);
-                    const heightGrades = show.classes.find(
-                      (c) => c.id === e.target.value
-                    )?.height_grades;
 
-                    const heights = Object.keys(heightGrades);
-                    setHeights(heights);
-                    setHeight(heights[0]);
-
-                    console.log("getting entries");
-                    console.log(e.target.value);
-                    getEntries(e.target.value as any);
+          {/* Compact Competitor Information */}
+          <Box display="flex" alignItems="center" gap={2} mb={1}>
+            {/* Small Competitor Avatar */}
+            <Box
+              sx={{
+                width: 50,
+                height: 50,
+                borderRadius: "50%",
+                border: "2px solid #1976d2",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: nextEntry.picture_url ? "transparent" : "#f5f5f5",
+                color: "#757575",
+                fontSize: "20px",
+                fontWeight: "bold",
+              }}
+            >
+              {nextEntry.picture_url ? (
+                <Box
+                  component="img"
+                  src={nextEntry.picture_url}
+                  alt={`${nextEntry.partnership}`}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "50%",
+                    objectFit: "cover",
                   }}
-                  fullWidth
-                >
-                  {show?.classes?.map((c: C, index: number) => (
-                    <MenuItem key={index} value={c.id}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                />
+              ) : (
+                // Default avatar with initials or icon
+                nextEntry.partnership
+                  ?.split(" ")
+                  .map((name) => name[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2) || "?"
+              )}
             </Box>
-          ) : (
-            <Grid padding={2} container rowSpacing={3}>
-              <Grid item xs={12}>
+
+            {/* Compact Competitor Details */}
+            <Box flex={1}>
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                color="primary"
+                mb={0.5}
+              >
+                {nextEntry.partnership}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {nextEntry.class_name} • Entry #{nextEntry.id}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Compact Status and Alerts */}
+          <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
+            {nextEntry.is_wish_ticket && (
+              <Chip
+                label="Wish Ticket"
+                color="info"
+                size="small"
+                sx={{ fontWeight: "bold" }}
+              />
+            )}
+            {eliminated && (
+              <Chip
+                label="Eliminated"
+                color="error"
+                icon={<Cancel />}
+                size="small"
+              />
+            )}
+            {nfcRun && (
+              <Chip label="NFC" color="info" icon={<Speed />} size="small" />
+            )}
+            {nextEntry.partnership?.includes("Olivia Wood") && (
+              <Chip
+                label="Autistic"
+                color="warning"
+                size="small"
+                variant="outlined"
+              />
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Render scoring interface based on class type
+  const renderScoringInterface = () => {
+    if (!nextEntry.id || nextEntry.id === 0) return null;
+
+    const isSnooker = nextEntry.class_name.toLowerCase().includes("snooker");
+    const isGamblers = nextEntry.class_name.toLowerCase().includes("gamblers");
+    const isPairs = nextEntry.class_name.toLowerCase().includes("pairs");
+
+    return (
+      <Card sx={{ p: { xs: 0, md: 1 } }}>
+        {" "}
+        {/* No padding on mobile/tablet, minimal on laptop+ */}
+        <CardContent sx={{ p: { xs: 1, md: 1 } }}>
+          {" "}
+          {/* Minimal padding */}
+          <Typography variant="h6" mb={1} textAlign="center">
+            Scoring
+          </Typography>
+          {/* Submit Button - Moved to top for easy access */}
+          <Button
+            fullWidth
+            variant="contained"
+            color="success"
+            size="large"
+            disabled={
+              !nfcRun &&
+              !eliminated &&
+              (time === "" || time === "0" || time === "0.000")
+            }
+            onClick={() => setSubmitResultOpen(true)}
+            sx={{ mb: 2, py: 2, fontSize: "1.2rem" }}
+            startIcon={<CheckCircle />}
+          >
+            Submit Result
+          </Button>
+          {/* Time Input */}
+          <TextField
+            fullWidth
+            variant="outlined"
+            type="number"
+            label="Competitor Time"
+            value={time}
+            onChange={handleChangeTime}
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: <Timer sx={{ mr: 1, color: "text.secondary" }} />,
+            }}
+          />
+          {/* Class-specific scoring */}
+          {isSnooker && renderSnookerScoring()}
+          {isGamblers && renderGamblersScoring()}
+          {!isSnooker && !isGamblers && renderStandardScoring()}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Render Snooker scoring
+  const renderSnookerScoring = () => (
+    <Box>
+      <Typography variant="h6" mb={1} textAlign="center">
+        Total Points: {points.reduce((sum, a) => sum + a, 0)}
+      </Typography>
+      <Typography variant="body2" mb={1} textAlign="center">
+        Points: {points.join(", ")}
+      </Typography>
+
+      <Grid container spacing={1} mb={2}>
+        {[1, 2, 3, 4, 5, 6, 7].map((point) => (
+          <Grid item xs={3} key={point}>
+            <Button
+              variant="contained"
+              disabled={eliminated}
+              onClick={() => {
+                const p = [...points];
+                p.push(point);
+                setPoints(p);
+              }}
+              sx={{
+                bgcolor:
+                  point === 1
+                    ? "red"
+                    : point === 2
+                      ? "yellow"
+                      : point === 3
+                        ? "green"
+                        : point === 4
+                          ? "brown"
+                          : point === 5
+                            ? "blue"
+                            : point === 6
+                              ? "pink"
+                              : "black",
+                color: [2, 6].includes(point) ? "black" : "white",
+                minHeight: "80px",
+                fontSize: "1.5rem",
+                fontWeight: "bold",
+              }}
+            >
+              {point}
+            </Button>
+          </Grid>
+        ))}
+        <Grid item xs={3}>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={eliminated}
+            onClick={() => setEliminated(!eliminated)}
+            sx={{ minHeight: "80px", fontSize: "1.5rem", fontWeight: "bold" }}
+          >
+            E
+          </Button>
+        </Grid>
+      </Grid>
+
+      <Button
+        variant="outlined"
+        onClick={() => {
+          const p = [...points];
+          p.pop();
+          setPoints(p);
+        }}
+        fullWidth
+        sx={{ py: 1.5, fontSize: "1.1rem" }}
+      >
+        Undo Last Point
+      </Button>
+    </Box>
+  );
+
+  // Render Gamblers scoring
+  const renderGamblersScoring = () => (
+    <Box>
+      <Typography variant="h6" mb={1} textAlign="center">
+        Total Points: {points.reduce((sum, a) => sum + a, 0)}
+      </Typography>
+
+      <TextField
+        fullWidth
+        variant="outlined"
+        type="number"
+        label="Points"
+        value={points.reduce((sum, a) => sum + a, 0)}
+        onChange={(e) => setPoints([parseInt(e.target.value) || 0])}
+        sx={{ mb: 2 }}
+      />
+
+      {show?.classes?.find((c) => c.name === nextEntry.class_name)?.metadata?.[
+        "gamblers_points"
+      ] && (
+        <Box sx={{ mb: 2 }}>
+          {/* Mobile-friendly button grid - 2 columns on mobile, 4 on larger screens */}
+          <Grid container spacing={1}>
+            {Object.keys(
+              show?.classes?.find((c) => c.name === nextEntry.class_name)
+                ?.metadata?.["gamblers_points"],
+            ).map((item, index) => (
+              <Grid item xs={6} sm={3} key={index}>
                 <Button
-                  onClick={() => {
-                    getNextEntry();
-                    setQueue(false);
-                    setScrime(true);
-                  }}
-                  fullWidth
-                  color="secondary"
                   variant="contained"
+                  onClick={() => {
+                    setPoints([
+                      ...points,
+                      parseInt(
+                        show?.classes?.find(
+                          (c) => c.name === nextEntry.class_name,
+                        )?.metadata?.["gamblers_points"][item],
+                      ),
+                    ]);
+                  }}
+                  sx={{
+                    bgcolor: (() => {
+                      const pointValue = show?.classes?.find(
+                        (c) => c.name === nextEntry.class_name,
+                      )?.metadata?.["gamblers_points"][item];
+                      return pointValue === 5
+                        ? "green"
+                        : pointValue === 4
+                          ? "orange"
+                          : pointValue === 2
+                            ? "blue"
+                            : pointValue === 1
+                              ? "purple"
+                              : "black";
+                    })(),
+                    minHeight: { xs: "60px", md: "80px" },
+                    fontSize: { xs: "1.2rem", md: "1.5rem" },
+                    fontWeight: "bold",
+                    width: "100%",
+                  }}
                 >
-                  Go To Scrime
+                  {item}
                 </Button>
               </Grid>
-              <Grid item xs={12}>
-                <Typography variant="h6">
-                  Queue -{" "}
-                  {show?.classes?.find((c) => c.id === classValue)?.name}
-                </Typography>
-              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
 
-              <Grid item xs={12}>
+      {/* Action buttons with mobile-friendly sizing */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => setEliminated(!eliminated)}
+          sx={{
+            minHeight: { xs: "60px", md: "80px" },
+            fontSize: { xs: "1.2rem", md: "1.5rem" },
+            fontWeight: "bold",
+          }}
+          fullWidth
+        >
+          {eliminated ? "Undo Elimination" : "Eliminated"}
+        </Button>
+
+        <Button
+          variant="outlined"
+          onClick={() => {
+            const p = [...points];
+            p.pop();
+            setPoints(p);
+          }}
+          fullWidth
+          sx={{
+            py: { xs: 1, md: 1.5 },
+            fontSize: { xs: "1rem", md: "1.1rem" },
+            minHeight: { xs: "48px", md: "56px" },
+          }}
+        >
+          Undo Last Point
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  // Render standard scoring
+  const renderStandardScoring = () => (
+    <Box>
+      {!eliminated && (
+        <Typography variant="h6" mb={1} textAlign="center">
+          Faults:{" "}
+          {faults.length === 0 && faults100.length === 0
+            ? "None"
+            : faults.join(", ") + " " + faults100.join(", ")}
+        </Typography>
+      )}
+
+      <Grid container spacing={1} mb={2}>
+        <Grid item xs={6}>
+          <Button
+            variant="contained"
+            onClick={() => setFaults([...faults, "R"])}
+            sx={{
+              bgcolor: "green",
+              minHeight: "100px",
+              fontSize: "2rem",
+              fontWeight: "bold",
+            }}
+            fullWidth
+          >
+            R
+          </Button>
+        </Grid>
+        <Grid item xs={6}>
+          <Button
+            variant="contained"
+            onClick={() => setFaults([...faults, "5"])}
+            sx={{
+              bgcolor: "green",
+              minHeight: "100px",
+              fontSize: "2rem",
+              fontWeight: "bold",
+            }}
+            fullWidth
+          >
+            5
+          </Button>
+        </Grid>
+
+        {nextEntry.class_name.toLowerCase().includes("pairs") && (
+          <Grid item xs={12}>
+            <Button
+              variant="contained"
+              onClick={() => setFaults100([...faults100, "100"])}
+              sx={{
+                bgcolor: "green",
+                minHeight: "100px",
+                fontSize: "2rem",
+                fontWeight: "bold",
+              }}
+              fullWidth
+            >
+              100F
+            </Button>
+          </Grid>
+        )}
+
+        <Grid item xs={6}>
+          <Button
+            variant="contained"
+            onClick={() => setFaults([...faults, "H"])}
+            sx={{
+              bgcolor: "gray",
+              color: "white",
+              minHeight: "100px",
+              fontSize: "2rem",
+              fontWeight: "bold",
+            }}
+            fullWidth
+          >
+            H
+          </Button>
+        </Grid>
+        <Grid item xs={6}>
+          <Button
+            variant="contained"
+            onClick={() => setNFCRun(!nfcRun)}
+            sx={{
+              bgcolor: "blue",
+              minHeight: "100px",
+              fontSize: "1.8rem",
+              fontWeight: "bold",
+            }}
+            fullWidth
+          >
+            {nfcRun ? "Undo NFC" : "NFC"}
+          </Button>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Button
+            variant="contained"
+            onClick={() => setEliminated(!eliminated)}
+            sx={{
+              bgcolor: "red",
+              minHeight: "100px",
+              fontSize: "2rem",
+              fontWeight: "bold",
+            }}
+            fullWidth
+          >
+            {eliminated ? "Undo Eliminated" : "Eliminated"}
+          </Button>
+        </Grid>
+      </Grid>
+
+      <Button
+        variant="outlined"
+        onClick={() => {
+          const f = [...faults];
+          f.pop();
+          setFaults(f);
+        }}
+        fullWidth
+        sx={{ py: 1.5, fontSize: "1.1rem" }}
+      >
+        Undo Last Fault
+      </Button>
+
+      {nextEntry.class_name.toLowerCase().includes("pairs") && (
+        <Button
+          variant="outlined"
+          onClick={() => {
+            const f = [...faults100];
+            f.pop();
+            setFaults100(f);
+          }}
+          fullWidth
+          sx={{ py: 1.5, fontSize: "1.1rem" }}
+        >
+          Undo Last 100 Fault
+        </Button>
+      )}
+    </Box>
+  );
+
+  // Render queue management
+  const renderQueueManagement = () => (
+    <Box>
+      {classValue === 0 ? (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" mb={3} textAlign="center">
+              Please select a class to view the queue
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Select A Class</InputLabel>
+              <Select
+                value={classValue}
+                onChange={(e) => {
+                  setClassValue(e.target.value as any);
+                  const heightGrades = show.classes.find(
+                    (c) => c.id === e.target.value,
+                  )?.height_grades;
+                  const heights = Object.keys(heightGrades);
+                  setHeights(heights);
+                  setHeight(heights[0]);
+                  getEntries(e.target.value as any);
+                }}
+                label="Select A Class"
+              >
+                {show?.classes?.map((c: C, index: number) => (
+                  <MenuItem key={index} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </CardContent>
+        </Card>
+      ) : (
+        <Box>
+          <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
+            <CardContent sx={{ p: { xs: 1, md: 2 } }}>
+              <Typography variant="h6" mb={2}>
+                Queue - {show?.classes?.find((c) => c.id === classValue)?.name}
+              </Typography>
+
+              <Box display="flex" gap={1} flexWrap="wrap">
                 <Button
                   variant="contained"
-                  onClick={() => {
-                    setClassDetailsOpen(true);
-                  }}
-                  sx={{ marginTop: 2, textTransform: "none" }}
+                  onClick={() => setClassDetailsOpen(true)}
+                  startIcon={<Settings />}
                 >
-                  Open Course Details
+                  Course Details
                 </Button>
                 <Button
                   variant="contained"
                   color="warning"
-                  onClick={() => {
-                    setCloseClassOpen(true);
-                  }}
-                  sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
+                  onClick={() => setCloseClassOpen(true)}
+                  startIcon={<Cancel />}
                 >
-                  Close This Class
+                  Close Class
                 </Button>
                 <Button
                   variant="contained"
                   color="secondary"
-                  onClick={() => {
-                    setSendMessageOpen(true);
-                  }}
-                  sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
+                  onClick={() => setSendMessageOpen(true)}
+                  startIcon={<Score />}
                 >
                   PA Announcement
                 </Button>
-                {/* <Button
+                <Button
                   variant="contained"
+                  color="error"
                   onClick={() => {
-                    generateLeaguePoints();
+                    setClassValue(0);
+                    setHeight("");
                   }}
-                  sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
-                  color="secondary"
                 >
-                  Generate league points for this class
-                </Button> */}
-                <Button>
-                  <Button
-                    variant="contained"
-                    onClick={() => {
-                      setClassValue(0);
-                      setHeight("");
-                    }}
-                    sx={{ textTransform: "none", marginLeft: 3, marginTop: 2 }}
-                    color="error"
-                  >
-                    Exit this class
-                  </Button>
+                  Exit Class
                 </Button>
-              </Grid>
+              </Box>
+            </CardContent>
+          </Card>
 
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel id={`height-select-label`}>
-                    Select A Height
-                  </InputLabel>
-                  <Select
-                    labelId={`height-select-label`}
-                    id={`height-select`}
-                    label="Select A Height"
-                    name="select_height"
-                    fullWidth
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                  >
-                    {heights.map((height, index) => (
-                      <MenuItem key={index} value={height}>
-                        {height}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12}>
-                <DataGrid
+          <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
+            <CardContent sx={{ p: { xs: 1, md: 2 } }}>
+              <FormControl fullWidth>
+                <FormLabel
+                  component="legend"
                   sx={{
-                    // disable cell selection style
-                    ".MuiDataGrid-cell:focus": {
-                      outline: "none",
-                    },
+                    mb: 2,
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    color: "text.primary",
                   }}
-                  {...({
-                    columns: columns,
-                    rows: entries || [],
-                  } as any)}
-                  autoHeight
-                />
-              </Grid>
+                >
+                  Select A Height
+                </FormLabel>
+                <RadioGroup
+                  row
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
+                >
+                  {heights.map((heightOption, index) => (
+                    <FormControlLabel
+                      key={index}
+                      value={heightOption}
+                      control={
+                        <Radio
+                          sx={{
+                            display: "none",
+                          }}
+                        />
+                      }
+                      label={
+                        <Box
+                          sx={{
+                            px: 3,
+                            py: 1.5,
+                            border: 2,
+                            borderRadius: 2,
+                            borderColor:
+                              height === heightOption
+                                ? "primary.main"
+                                : "grey.300",
+                            bgcolor:
+                              height === heightOption
+                                ? "primary.main"
+                                : "transparent",
+                            color:
+                              height === heightOption
+                                ? "white"
+                                : "text.primary",
+                            fontWeight: height === heightOption ? 600 : 500,
+                            fontSize: "0.95rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease-in-out",
+                            "&:hover": {
+                              borderColor: "primary.main",
+                              bgcolor:
+                                height === heightOption
+                                  ? "primary.dark"
+                                  : "primary.light",
+                              color: "white",
+                              transform: "translateY(-2px)",
+                              boxShadow: 2,
+                            },
+                            minWidth: { xs: "80px", sm: "100px" },
+                            textAlign: "center",
+                          }}
+                        >
+                          {heightOption}
+                        </Box>
+                      }
+                      sx={{
+                        margin: 0,
+                      }}
+                    />
+                  ))}
+                </RadioGroup>
+              </FormControl>
+            </CardContent>
+          </Card>
 
-              <Modal
-                open={queueConfirmOpen}
-                onClose={() => setQueueConfirmOpen(false)}
-              >
-                <Box sx={modalStyle}>
+          {/* Mobile-friendly queue entries */}
+          <Box>
+            {entries && entries.length > 0 ? (
+              // Sort entries: queued first (in queue order), then not queued, then completed runs, then withdrawn at the bottom
+              [...entries]
+                .sort((a, b) => {
+                  // Check if entry is withdrawn
+                  const aWithdrawn = !!a.withdrawn;
+                  const bWithdrawn = !!b.withdrawn;
+
+                  // Withdrawn entries always go to the bottom
+                  if (aWithdrawn && !bWithdrawn) return 1;
+                  if (!aWithdrawn && bWithdrawn) return -1;
+
+                  // Check if entry has completed a run
+                  const aCompleted = !!(a.time || a.eliminated || a.nfc_run);
+                  const bCompleted = !!(b.time || b.eliminated || b.nfc_run);
+
+                  // Check if entry is queued
+                  const aQueued = !!a.queued_at;
+                  const bQueued = !!b.queued_at;
+
+                  // Priority order: queued > not queued > completed > withdrawn
+                  if (aQueued && !bQueued) return -1;
+                  if (!aQueued && bQueued) return 1;
+                  if (aCompleted && !bCompleted) return 1;
+                  if (!aCompleted && bCompleted) return -1;
+
+                  // For queued entries, sort by queued_at timestamp (FIFO order)
+                  if (aQueued && bQueued) {
+                    const aTime = new Date(a.queued_at!).getTime();
+                    const bTime = new Date(b.queued_at!).getTime();
+                    return aTime - bTime; // Earlier timestamp (first queued) comes first
+                  }
+
+                  // Maintain original order within same priority group
+                  return 0;
+                })
+                .map((entry, index) => {
+                  const isQueued = !!entry.queued_at;
+                  const isCompleted = !!(
+                    entry.time ||
+                    entry.eliminated ||
+                    entry.nfc_run
+                  );
+                  const isWithdrawn = !!entry.withdrawn;
+                  const isInactive = isWithdrawn || isCompleted;
+
+                  return (
+                    <Card
+                      key={entry.id}
+                      sx={{
+                        mb: 2,
+                        mx: { xs: 0, md: 0 },
+                        border: isQueued
+                          ? "2px solid #1976d2"
+                          : isInactive
+                            ? "1px solid #d0d0d0"
+                            : "1px solid #e0e0e0",
+                        bgcolor: isQueued
+                          ? "#f3f8ff"
+                          : isInactive
+                            ? "#e8e8e8"
+                            : "white",
+                        position: "relative",
+                        opacity: isInactive ? 0.7 : 1,
+                      }}
+                    >
+                      {/* Queued indicator banner */}
+                      {isQueued && (
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bgcolor: "#1976d2",
+                            color: "white",
+                            py: 0.5,
+                            px: 2,
+                            textAlign: "center",
+                            fontSize: "0.75rem",
+                            fontWeight: "bold",
+                            borderTopLeftRadius: "4px",
+                            borderTopRightRadius: "4px",
+                          }}
+                        >
+                          🎯 QUEUED - READY TO RUN
+                        </Box>
+                      )}
+
+                      <CardContent
+                        sx={{ pt: isQueued ? 4 : 2, px: { xs: 1, md: 2 } }}
+                      >
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                          mb={2}
+                        >
+                          <Box flex={1}>
+                            <Box display="flex" alignItems="center" gap={2}>
+                              {/* Competitor Picture or Default Avatar */}
+                              <Box
+                                sx={{
+                                  width: 60,
+                                  height: 60,
+                                  borderRadius: "50%",
+                                  border: "2px solid #e0e0e0",
+                                  flexShrink: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  bgcolor: entry.picture_url
+                                    ? "transparent"
+                                    : "#f5f5f5",
+                                  color: "#757575",
+                                  fontSize: "24px",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {entry.picture_url ? (
+                                  <Box
+                                    component="img"
+                                    src={entry.picture_url}
+                                    alt={`${entry.partnership}`}
+                                    sx={{
+                                      width: "100%",
+                                      height: "100%",
+                                      borderRadius: "50%",
+                                      objectFit: "cover",
+                                    }}
+                                  />
+                                ) : (
+                                  // Default avatar with initials or icon
+                                  entry.partnership
+                                    ?.split(" ")
+                                    .map((name) => name[0])
+                                    .join("")
+                                    .toUpperCase()
+                                    .slice(0, 2) || "?"
+                                )}
+                              </Box>
+
+                              {/* Competitor Information */}
+                              <Box>
+                                <Typography
+                                  variant="h6"
+                                  fontWeight="bold"
+                                  color={isQueued ? "#1976d2" : "inherit"}
+                                >
+                                  {entry.partnership}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Entry #{entry.id}
+                                </Typography>
+                                {isQueued && (
+                                  <Typography
+                                    variant="body2"
+                                    color="primary"
+                                    fontWeight="bold"
+                                    mt={0.5}
+                                  >
+                                    ⏰ Queued at:{" "}
+                                    {new Date(
+                                      entry.queued_at!,
+                                    ).toLocaleTimeString()}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Box>
+                          </Box>
+                          <Box
+                            display="flex"
+                            gap={1}
+                            flexDirection="column"
+                            alignItems="flex-end"
+                          >
+                            {/* Status chips */}
+                            {entry.withdrawn && (
+                              <Chip
+                                label="WITHDRAWN"
+                                color="warning"
+                                size="small"
+                                icon={<Warning />}
+                                sx={{ fontWeight: "bold" }}
+                              />
+                            )}
+                            {isQueued && (
+                              <Chip
+                                label="QUEUED"
+                                color="primary"
+                                size="small"
+                                icon={<Queue />}
+                                sx={{ fontWeight: "bold" }}
+                              />
+                            )}
+                            {!isQueued && !isCompleted && !entry.withdrawn && (
+                              <Chip
+                                label="NOT QUEUED"
+                                color="default"
+                                size="small"
+                                variant="outlined"
+                              />
+                            )}
+                            {entry.time && (
+                              <Chip
+                                label={`Time: ${entry.time}s`}
+                                color="success"
+                                size="small"
+                                icon={<Timer />}
+                              />
+                            )}
+                            {entry.eliminated && (
+                              <Chip
+                                label="Eliminated"
+                                color="error"
+                                size="small"
+                                icon={<Cancel />}
+                              />
+                            )}
+                            {entry.nfc_run && (
+                              <Chip
+                                label="NFC"
+                                color="info"
+                                size="small"
+                                icon={<Speed />}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+
+                        {/* Action buttons */}
+                        <Box display="flex" gap={1} flexWrap="wrap">
+                          {/* Primary Action Button */}
+                          <Button
+                            variant={isQueued ? "contained" : "outlined"}
+                            color={
+                              isQueued
+                                ? "primary"
+                                : isCompleted
+                                  ? "error"
+                                  : "success"
+                            }
+                            onClick={() => {
+                              setQueuedEntry(entry);
+                              setQueueConfirmOpen(true);
+                            }}
+                            sx={{
+                              flex: 2,
+                              minHeight: "48px",
+                              fontSize: "0.9rem",
+                              fontWeight: "bold",
+                            }}
+                            startIcon={isQueued ? <Cancel /> : <Queue />}
+                          >
+                            {isQueued ? "Unqueue" : "Queue"}
+                          </Button>
+
+                          {/* Secondary Action Button */}
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            onClick={() => {
+                              setChangeHandlerName(true);
+                              setNewHandlerName("");
+                              setEntryId(entry.id);
+                            }}
+                            sx={{
+                              flex: 1,
+                              minHeight: "48px",
+                              fontSize: "0.85rem",
+                            }}
+                          >
+                            Handler
+                          </Button>
+
+                          {/* Bump to Top Button - Only show for queued entries */}
+                          {isQueued && (
+                            <Button
+                              variant="outlined"
+                              color="warning"
+                              onClick={() => {
+                                setBumpEntry(entry);
+                                setBumpConfirmOpen(true);
+                              }}
+                              sx={{
+                                flex: 1,
+                                minHeight: "48px",
+                                fontSize: "0.85rem",
+                              }}
+                              startIcon={<PlayArrow />}
+                            >
+                              Bump
+                            </Button>
+                          )}
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+            ) : (
+              <Card sx={{ bgcolor: "#f8f9fa", mx: { xs: 0, md: 0 } }}>
+                <CardContent sx={{ p: { xs: 1, md: 2 } }}>
                   <Typography
-                    id="modal-modal-title"
                     variant="h6"
-                    component="h2"
+                    color="text.secondary"
+                    textAlign="center"
                   >
-                    {queuedEntry.queued_at ? "Unqueue" : "Queue"} This Entry
+                    No entries found for this class and height
                   </Typography>
-                  {queuedEntry.time ||
-                    queuedEntry.eliminated ||
-                    (queuedEntry.nfc_run && (
-                      <Typography marginTop={1} color="red">
-                        WARNING: THIS PERSON HAS ALREADY RUN IN THIS CLASS.
-                        PLEASE MAKE SURE YOU ARE CERTAIN THAT YOU WANT TO
-                        COMPLETE THIS ACTION.
-                      </Typography>
-                    ))}
-                  <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                    Are you sure you want to
-                    {queuedEntry.queued_at ? " unqueue" : " queue"}{" "}
-                    {queuedEntry.partnership}
-                  </Typography>
-                  {queuedEntry.partnership?.includes("Olivia Wood") && (
-                    <Typography mt={2} color="red">
-                      ***Please note this competitor is autistic.***
-                    </Typography>
-                  )}
-
-                  <Button
-                    onClick={() => {
-                      setQueuedEntry({} as Entry);
-                      setQueueConfirmOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      queuedEntry.queued_at
-                        ? unqueueEntry(queuedEntry.id)
-                        : queueEntry(queuedEntry.id);
-                      setQueuedEntry({} as Entry);
-                      setQueueConfirmOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Confirm
-                  </Button>
-                </Box>
-              </Modal>
-              <Modal
-                open={closeClassOpen}
-                onClose={() => setCloseClassOpen(false)}
-              >
-                <Box sx={modalStyle}>
                   <Typography
-                    id="modal-modal-title"
-                    variant="h6"
-                    component="h2"
+                    variant="body2"
+                    color="text.secondary"
+                    mt={1}
+                    textAlign="center"
                   >
-                    Close This Class
+                    Select a different class or height, or check if entries
+                    exist
                   </Typography>
-                  <Typography id="modal-modal-description" sx={{ mt: 2 }}>
-                    Are you sure you want to close this class?
-                  </Typography>
-
-                  <Button
-                    onClick={() => {
-                      setCloseClassOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      closeClass();
-                      setCloseClassOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Confirm
-                  </Button>
-                </Box>
-              </Modal>
-              <Modal
-                open={sendMessageOpen}
-                onClose={() => setSendMessageOpen(false)}
-              >
-                <Box sx={modalStyle}>
-                  <Typography
-                    id="modal-modal-title"
-                    variant="h6"
-                    component="h2"
-                  >
-                    Send PA Message
-                  </Typography>
-                  <TextField
-                    sx={{ marginTop: 2 }}
-                    fullWidth
-                    name="message"
-                    label="Message"
-                    variant="outlined"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                  />
-
-                  <Button
-                    onClick={() => {
-                      setMessage("Calling to 20");
-                    }}
-                    sx={{ marginTop: 2 }}
-                  >
-                    Calling to 20
-                  </Button>
-                  <br />
-                  <Button
-                    onClick={() => {
-                      setMessage("Calling to 40");
-                    }}
-                  >
-                    Calling to 40
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setMessage("Calling all remaining dogs");
-                    }}
-                  >
-                    Calling all remaining dogs
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setMessage("Closing in 5 minutes");
-                    }}
-                  >
-                    Closing in 5 minutes
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setMessage("Walking now, starting in 5 minutes");
-                    }}
-                  >
-                    Walking now, starting in 5 minutes
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setMessage("Walking now, starting in 10 minutes");
-                    }}
-                  >
-                    Walking now, starting in 10 minutes
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setMessage("Walking now, starting in 15 minutes");
-                    }}
-                  >
-                    Walking now, starting in 15 minutes
-                  </Button>
-
-                  <Button
-                    onClick={() => {
-                      setSendMessageOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setClassMessage();
-                      setMessage("");
-                      setSendMessageOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Confirm
-                  </Button>
-                </Box>
-              </Modal>
-              <Modal
-                open={classDetailsOpen}
-                onClose={() => setClassDetailsOpen(false)}
-              >
-                <Box sx={modalStyle}>
-                  <Typography
-                    id="modal-modal-title"
-                    variant="h6"
-                    component="h2"
-                  >
-                    Add Course Time and Distance For This Class
-                  </Typography>
-                  <TextField
-                    sx={{ marginTop: 2 }}
-                    fullWidth
-                    name="course_time"
-                    label="Course Time (in seconds)"
-                    variant="outlined"
-                    type="number"
-                    value={courseTime}
-                    onChange={handleChange}
-                  />
-                  <TextField
-                    sx={{ marginTop: 2 }}
-                    fullWidth
-                    name="course_distance"
-                    label="Course Distance (in metres)"
-                    type="number"
-                    variant="outlined"
-                    value={courseDistance}
-                    onChange={handleChange}
-                  />
-                  <Button
-                    onClick={updateClassDetails}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setClassDetailsOpen(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                    color="success"
-                  >
-                    Close
-                  </Button>
-                </Box>
-              </Modal>
-              <Modal
-                open={changeHandlerName}
-                onClose={() => setChangeHandlerName(false)}
-              >
-                <Box sx={modalStyle}>
-                  <Typography
-                    id="modal-modal-title"
-                    variant="h6"
-                    component="h2"
-                  >
-                    Change Handler Name
-                  </Typography>
-                  <TextField
-                    sx={{ marginTop: 2 }}
-                    fullWidth
-                    name="handler_name"
-                    label="New Handler Name"
-                    variant="outlined"
-                    value={newHandlerName}
-                    onChange={(e) => {
-                      setNewHandlerName(e.target.value);
-                    }}
-                  />
-                  <Button
-                    onClick={() => {
-                      changeHandlerNameReq();
-                      setChangeHandlerName(false);
-                      setNewHandlerName("");
-                      getEntries(classValue);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setChangeHandlerName(false);
-                    }}
-                    style={{ minWidth: "100%", marginTop: "30px" }}
-                    variant="contained"
-                    color="success"
-                  >
-                    Cancel
-                  </Button>
-                </Box>
-              </Modal>
-            </Grid>
-          )}
-        </>
-      ) : (
-        <Grid padding={2} container rowSpacing={3}>
-          <Grid item xs={12}>
-            <Button
-              onClick={() => setScrime(true)}
-              fullWidth
-              color="success"
-              variant="contained"
-            >
-              Scrime
-            </Button>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Button
-              onClick={() => setQueue(true)}
-              fullWidth
-              color="success"
-              variant="contained"
-            >
-              Queue
-            </Button>
-          </Grid>
-        </Grid>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
+        </Box>
       )}
+    </Box>
+  );
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        bgcolor: "#cfd8e3",
+      }}
+    >
+      <CssBaseline />
+
+      {/* App Bar */}
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Easy Agility Admin
+          </Typography>
+          <IconButton color="inherit" onClick={() => getNextEntry()}>
+            <Refresh />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+
+      {/* Main Content */}
+      <Container
+        maxWidth="lg"
+        sx={{
+          flexGrow: 1,
+          py: { xs: 0, md: 2 },
+          px: { xs: 0, md: 2 },
+          bgcolor: "#cfd8e3",
+        }}
+      >
+        {/* Tab Navigation */}
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="fullWidth"
+          >
+            <Tab label="Scrime" icon={<PlayArrow />} iconPosition="start" />
+            <Tab label="Queue" icon={<Queue />} iconPosition="start" />
+          </Tabs>
+        </Box>
+
+        {/* Tab Panels */}
+        <TabPanel value={activeTab} index={0}>
+          <Box>
+            {renderClassWarning()}
+            {renderCurrentCompetitor()}
+            {renderScoringInterface()}
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={1}>
+          {renderQueueManagement()}
+        </TabPanel>
+      </Container>
+
+      {/* Modals */}
+      {/* Submit Result Modal */}
+      <Modal open={submitResultOpen} onClose={() => setSubmitResultOpen(false)}>
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2" mb={2}>
+            Submit This Result
+          </Typography>
+          <Typography mb={2}>
+            Are you sure you want to submit this result?
+          </Typography>
+          <Typography fontWeight="bold" mb={3}>
+            Time: {time}
+          </Typography>
+          <Box display="flex" gap={2}>
+            <Button
+              onClick={() => submitResult(nextEntry.id)}
+              disabled={disableSubmit}
+              variant="contained"
+              color="success"
+              fullWidth
+            >
+              Confirm
+            </Button>
+            <Button
+              onClick={() => setSubmitResultOpen(false)}
+              variant="outlined"
+              color="error"
+              fullWidth
+            >
+              Cancel
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Queue Confirm Modal */}
+      <Modal open={queueConfirmOpen} onClose={() => setQueueConfirmOpen(false)}>
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2" mb={2}>
+            {queuedEntry.queued_at ? "Unqueue" : "Queue"} This Entry
+          </Typography>
+
+          {/* Competitor Avatar and Information */}
+          <Box display="flex" alignItems="center" gap={2} mb={3}>
+            {/* Competitor Picture or Default Avatar */}
+            <Box
+              sx={{
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                border: "2px solid #e0e0e0",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: queuedEntry.picture_url ? "transparent" : "#f5f5f5",
+                color: "#757575",
+                fontSize: "32px",
+                fontWeight: "bold",
+              }}
+            >
+              {queuedEntry.picture_url ? (
+                <Box
+                  component="img"
+                  src={queuedEntry.picture_url}
+                  alt={`${queuedEntry.partnership}`}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                // Default avatar with initials or icon
+                queuedEntry.partnership
+                  ?.split(" ")
+                  .map((name) => name[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2) || "?"
+              )}
+            </Box>
+
+            {/* Competitor Details */}
+            <Box>
+              <Typography variant="h5" fontWeight="bold" color="primary">
+                {queuedEntry.partnership}
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Entry #{queuedEntry.id}
+              </Typography>
+              {queuedEntry.queued_at && (
+                <Typography
+                  variant="body2"
+                  color="primary"
+                  fontWeight="bold"
+                  mt={0.5}
+                >
+                  ⏰ Currently Queued
+                </Typography>
+              )}
+            </Box>
+          </Box>
+
+          {queuedEntry.time || queuedEntry.eliminated || queuedEntry.nfc_run ? (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              WARNING: THIS PERSON HAS ALREADY RUN IN THIS CLASS. PLEASE MAKE
+              SURE YOU ARE CERTAIN.
+            </Alert>
+          ) : null}
+          <Typography mb={2}>
+            Are you sure you want to{" "}
+            {queuedEntry.queued_at ? "unqueue" : "queue"}{" "}
+            {queuedEntry.partnership}?
+          </Typography>
+          {queuedEntry.partnership?.includes("Olivia Wood") && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              ***Please note this competitor is autistic.***
+            </Alert>
+          )}
+
+          {/* Wish Ticket Checkbox - Only show when IS_WISHTICKET_SHOW is true, competitor has already run, and we're queueing (not unqueueing) */}
+          {IS_WISHTICKET_SHOW &&
+            !queuedEntry.queued_at &&
+            (queuedEntry.time ||
+              queuedEntry.eliminated ||
+              queuedEntry.nfc_run) && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={isWishTicket}
+                    onChange={(e) => setIsWishTicket(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label="This is a Wish Ticket (second attempt)"
+                sx={{ mb: 2 }}
+              />
+            )}
+
+          <Box display="flex" gap={2}>
+            <Button
+              onClick={() => {
+                setQueuedEntry({} as Entry);
+                setIsWishTicket(false);
+                setQueueConfirmOpen(false);
+              }}
+              variant="outlined"
+              color="error"
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                queuedEntry.queued_at
+                  ? unqueueEntry(queuedEntry.id)
+                  : queueEntry(queuedEntry.id, isWishTicket);
+                setQueuedEntry({} as Entry);
+                setIsWishTicket(false);
+                setQueueConfirmOpen(false);
+              }}
+              variant="contained"
+              color="success"
+              fullWidth
+            >
+              Confirm
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Close Class Modal */}
+      <Modal
+        open={closeClassOpen}
+        onClose={() => {
+          setCloseClassOpen(false);
+          setCloseClassPin("");
+        }}
+      >
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2" mb={2}>
+            Close This Class
+          </Typography>
+          <Typography mb={2}>
+            Are you sure you want to close this class?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            Please enter the PIN code to confirm this action.
+          </Typography>
+          <TextField
+            fullWidth
+            type="password"
+            label="PIN Code"
+            variant="outlined"
+            value={closeClassPin}
+            onChange={(e) => setCloseClassPin(e.target.value)}
+            sx={{ mb: 3 }}
+            autoFocus
+            error={closeClassPin !== "" && closeClassPin !== CLOSE_CLASS_PIN}
+            helperText={
+              closeClassPin !== "" && closeClassPin !== CLOSE_CLASS_PIN
+                ? "Incorrect PIN code"
+                : ""
+            }
+            onKeyPress={(e) => {
+              if (e.key === "Enter" && closeClassPin === CLOSE_CLASS_PIN) {
+                closeClass();
+                setCloseClassOpen(false);
+                setCloseClassPin("");
+              }
+            }}
+          />
+          <Box display="flex" gap={2}>
+            <Button
+              onClick={() => {
+                setCloseClassOpen(false);
+                setCloseClassPin("");
+              }}
+              variant="outlined"
+              color="error"
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (closeClassPin === CLOSE_CLASS_PIN) {
+                  closeClass();
+                  setCloseClassOpen(false);
+                  setCloseClassPin("");
+                }
+              }}
+              variant="contained"
+              color="warning"
+              fullWidth
+              disabled={closeClassPin !== CLOSE_CLASS_PIN}
+            >
+              Confirm
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Send Message Modal */}
+      <Modal open={sendMessageOpen} onClose={() => setSendMessageOpen(false)}>
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2" mb={2}>
+            Send PA Message
+          </Typography>
+          <TextField
+            fullWidth
+            name="message"
+            label="Message"
+            variant="outlined"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+
+          <Box display="flex" flexDirection="column" gap={1} mb={3}>
+            {[
+              "Calling to 20",
+              "Calling to 40",
+              "Calling all remaining dogs",
+              "Closing in 5 minutes",
+              "Walking now, starting in 5 minutes",
+              "Walking now, starting in 10 minutes",
+              "Walking now, starting in 15 minutes",
+            ].map((msg, index) => (
+              <Button
+                key={index}
+                variant="outlined"
+                size="small"
+                onClick={() => setMessage(msg)}
+                sx={{ justifyContent: "flex-start" }}
+              >
+                {msg}
+              </Button>
+            ))}
+          </Box>
+
+          <Box display="flex" gap={2}>
+            <Button
+              onClick={() => setSendMessageOpen(false)}
+              variant="outlined"
+              color="error"
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setClassMessage();
+                setMessage("");
+                setSendMessageOpen(false);
+              }}
+              variant="contained"
+              color="success"
+              fullWidth
+            >
+              Send
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Class Details Modal */}
+      <Modal
+        open={classDetailsOpen && activeTab === 1}
+        onClose={() => setClassDetailsOpen(false)}
+      >
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2" mb={2}>
+            Add Course Time and Distance
+          </Typography>
+          <TextField
+            fullWidth
+            name="course_time"
+            label="Course Time (seconds)"
+            variant="outlined"
+            type="number"
+            value={courseTime}
+            onChange={handleChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            name="course_distance"
+            label="Course Distance (metres)"
+            type="number"
+            variant="outlined"
+            value={courseDistance}
+            onChange={handleChange}
+            sx={{ mb: 3 }}
+          />
+          <Box display="flex" gap={2}>
+            <Button
+              onClick={updateClassDetails}
+              variant="contained"
+              color="success"
+              fullWidth
+            >
+              Confirm
+            </Button>
+            <Button
+              onClick={() => setClassDetailsOpen(false)}
+              variant="outlined"
+              color="error"
+              fullWidth
+            >
+              Close
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Change Handler Name Modal */}
+      <Modal
+        open={changeHandlerName}
+        onClose={() => setChangeHandlerName(false)}
+      >
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2" mb={2}>
+            Change Handler Name
+          </Typography>
+          <TextField
+            fullWidth
+            name="handler_name"
+            label="New Handler Name"
+            variant="outlined"
+            value={newHandlerName}
+            onChange={(e) => setNewHandlerName(e.target.value)}
+            sx={{ mb: 3 }}
+          />
+          <Box display="flex" gap={2}>
+            <Button
+              onClick={() => {
+                changeHandlerNameReq();
+                setChangeHandlerName(false);
+                setNewHandlerName("");
+                getEntries(classValue);
+              }}
+              variant="contained"
+              color="success"
+              fullWidth
+            >
+              Confirm
+            </Button>
+            <Button
+              onClick={() => setChangeHandlerName(false)}
+              variant="outlined"
+              color="error"
+              fullWidth
+            >
+              Cancel
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Bump to Top Confirmation Modal */}
+      <Modal open={bumpConfirmOpen} onClose={() => setBumpConfirmOpen(false)}>
+        <Box sx={modalStyle}>
+          <Typography variant="h6" component="h2" mb={2}>
+            Bump to Top of Queue
+          </Typography>
+
+          {/* Competitor Avatar and Information */}
+          <Box display="flex" alignItems="center" gap={2} mb={3}>
+            {/* Competitor Picture or Default Avatar */}
+            <Box
+              sx={{
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                border: "2px solid #e0e0e0",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: bumpEntry.picture_url ? "transparent" : "#f5f5f5",
+                color: "#757575",
+                fontSize: "32px",
+                fontWeight: "bold",
+              }}
+            >
+              {bumpEntry.picture_url ? (
+                <Box
+                  component="img"
+                  src={bumpEntry.picture_url}
+                  alt={`${bumpEntry.partnership}`}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                // Default avatar with initials or icon
+                bumpEntry.partnership
+                  ?.split(" ")
+                  .map((name) => name[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2) || "?"
+              )}
+            </Box>
+
+            {/* Competitor Details */}
+            <Box>
+              <Typography variant="h5" fontWeight="bold" color="warning.main">
+                {bumpEntry.partnership}
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Entry #{bumpEntry.id}
+              </Typography>
+              <Typography
+                variant="body2"
+                color="warning.main"
+                fontWeight="bold"
+                mt={0.5}
+              >
+                ⚡ Will be moved to TOP of queue
+              </Typography>
+            </Box>
+          </Box>
+
+          <Typography mb={2}>
+            Are you sure you want to move{" "}
+            <strong>{bumpEntry.partnership}</strong> to the top of the queue?
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            This will temporarily unqueue all competitors, then requeue{" "}
+            <strong>{bumpEntry.partnership}</strong> first, followed by all
+            other queued competitors in their original order.
+          </Typography>
+
+          <Box display="flex" gap={2}>
+            <Button
+              onClick={() => setBumpConfirmOpen(false)}
+              variant="outlined"
+              color="error"
+              fullWidth
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                bumpToTop(bumpEntry.id);
+                setBumpConfirmOpen(false);
+                setBumpEntry({} as Entry);
+              }}
+              variant="contained"
+              color="warning"
+              fullWidth
+            >
+              Bump to Top
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
-        onClose={() => {
-          setSnackbarOpen(false);
-        }}
+        onClose={() => setSnackbarOpen(false)}
       >
         <Alert
-          onClose={() => {
-            setSnackbarOpen(false);
-          }}
+          onClose={() => setSnackbarOpen(false)}
           severity="success"
           sx={{ width: "100%" }}
         >
-          League have been generated for this class
+          League points have been generated for this class
         </Alert>
       </Snackbar>
     </Box>
