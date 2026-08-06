@@ -89,8 +89,8 @@ type C = {
   status?: string;
 };
 
-const showID = 68;
-const ringId = 22;
+const showID = 69;
+const ringId = 13;
 const CLOSE_CLASS_PIN = "7359"; // PIN code required to close a class
 const IS_WISHTICKET_SHOW = false;
 
