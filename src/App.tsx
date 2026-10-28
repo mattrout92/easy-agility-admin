@@ -28,6 +28,7 @@ import {
   Radio,
   FormControlLabel,
   FormLabel,
+  Checkbox,
 } from "@mui/material";
 import {
   PlayArrow,
@@ -70,6 +71,14 @@ export type Entry = {
   last_result_class_different?: boolean;
   picture_url?: string;
   withdrawn?: boolean;
+  is_wish_ticket?: boolean;
+  league_points?: number;
+};
+
+type LeaguePointsPreviewGroup = {
+  height: string;
+  gradesLabel: string;
+  entries: Entry[];
 };
 
 type Show = {
@@ -87,9 +96,10 @@ type C = {
   status?: string;
 };
 
-const showID = 59;
-const ringId = 11;
+const showID = 80;
+const ringId = 23;
 const CLOSE_CLASS_PIN = "7359"; // PIN code required to close a class
+const IS_WISHTICKET_SHOW = false;
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }: any) {
@@ -128,6 +138,16 @@ function App() {
   const [courseDistance, setCourseDistance] = useState<number>(0);
   const [courseTime, setCourseTime] = useState<number>(0);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string>("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
+    "success",
+  );
+  const [leaguePointsOpen, setLeaguePointsOpen] = useState<boolean>(false);
+  const [leaguePointsLoading, setLeaguePointsLoading] =
+    useState<boolean>(false);
+  const [leaguePointsPreview, setLeaguePointsPreview] = useState<
+    LeaguePointsPreviewGroup[]
+  >([]);
   const [closeClassOpen, setCloseClassOpen] = useState<boolean>(false);
   const [sendMessageOpen, setSendMessageOpen] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
@@ -137,11 +157,15 @@ function App() {
   const [bumpConfirmOpen, setBumpConfirmOpen] = useState<boolean>(false);
   const [bumpEntry, setBumpEntry] = useState<Entry>({} as Entry);
   const [closeClassPin, setCloseClassPin] = useState<string>("");
+  const [isWishTicket, setIsWishTicket] = useState<boolean>(false);
 
   const [queuedEntry, setQueuedEntry] = useState<Entry>({} as Entry);
   const [nextEntry, setNextEntry] = useState<Entry>({} as Entry);
   const [show, setShow] = useState<Show>({} as Show);
   const [heights, setHeights] = useState<string[]>([]);
+
+  const showLeaguePointsButton =
+    !!show?.name && (show.name.includes("JS") || show.name.includes("Babel"));
 
   // Effects
   useEffect(() => {
@@ -244,6 +268,74 @@ function App() {
     }
   };
 
+  const previewLeaguePoints = async () => {
+    const c = show?.classes?.find((cl) => cl.id === classValue);
+    if (!c?.height_grades) {
+      setSnackbarMessage("This class has no height grades configured.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setLeaguePointsLoading(true);
+    try {
+      const groups: LeaguePointsPreviewGroup[] = [];
+      const heightGrades = c.height_grades as Record<string, number[][]>;
+
+      for (const heightKey of Object.keys(heightGrades)) {
+        const gradeGroups = heightGrades[heightKey] || [];
+        for (const grade of gradeGroups) {
+          const gradesParam = grade.join(",");
+          const response = await axios.post(
+            `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/league-points?height=${encodeURIComponent(
+              heightKey,
+            )}&grades=${gradesParam}&preview=true`,
+          );
+          groups.push({
+            height: heightKey,
+            gradesLabel: gradesParam,
+            entries: response.data as Entry[],
+          });
+        }
+      }
+
+      setLeaguePointsPreview(groups);
+      setLeaguePointsOpen(true);
+    } catch (err) {
+      console.error(err);
+      setSnackbarMessage("Failed to preview league points.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    } finally {
+      setLeaguePointsLoading(false);
+    }
+  };
+
+  const confirmLeaguePoints = async () => {
+    setLeaguePointsLoading(true);
+    try {
+      for (const group of leaguePointsPreview) {
+        await axios.post(
+          `https://api.easyagility.co.uk/shows/${showID}/classes/${classValue}/league-points?height=${encodeURIComponent(
+            group.height,
+          )}&grades=${group.gradesLabel}`,
+        );
+      }
+      setLeaguePointsOpen(false);
+      setLeaguePointsPreview([]);
+      setSnackbarMessage("League points have been generated for this class.");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
+    } catch (err) {
+      console.error(err);
+      setSnackbarMessage("Failed to save league points.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    } finally {
+      setLeaguePointsLoading(false);
+    }
+  };
+
   const getShow = async () => {
     const response = await axios.get(
       `https://api.easyagility.co.uk/shows/${showID}?ring_id=${ringId}`,
@@ -306,8 +398,10 @@ function App() {
     // eslint-disable-next-line
   }, [classValue, height]);
 
-  const queueEntry = async (entryId: number) => {
-    await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`);
+  const queueEntry = async (entryId: number, isWishTicket: boolean = false) => {
+    await axios.post(`https://api.easyagility.co.uk/entries/${entryId}/queue`, {
+      is_wish_ticket: isWishTicket,
+    });
     await getEntries(classValue);
   };
 
@@ -372,6 +466,7 @@ function App() {
         total_faults: faults.length * 5 + faults100.length * 100,
         run_data: faults,
         points: points,
+        is_wish_ticket: false,
       },
     );
     setTime("");
@@ -477,6 +572,19 @@ function App() {
     return (
       <Card sx={{ mb: 2, mx: { xs: 0, md: 0 } }}>
         <CardContent sx={{ p: { xs: 1, md: 2 } }}>
+          {/* Wish Ticket Banner - Show prominently at the top */}
+          {nextEntry.is_wish_ticket && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold">
+                🎫 WISH TICKET - Second Attempt
+              </Typography>
+              <Typography variant="body2">
+                This competitor is running their wish ticket (second attempt) in
+                this class.
+              </Typography>
+            </Alert>
+          )}
+
           {/* Compact Competitor Information */}
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             {/* Small Competitor Avatar */}
@@ -537,6 +645,14 @@ function App() {
 
           {/* Compact Status and Alerts */}
           <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
+            {nextEntry.is_wish_ticket && (
+              <Chip
+                label="Wish Ticket"
+                color="info"
+                size="small"
+                sx={{ fontWeight: "bold" }}
+              />
+            )}
             {eliminated && (
               <Chip
                 label="Eliminated"
@@ -997,6 +1113,17 @@ function App() {
                 >
                   Close Class
                 </Button>
+                {showLeaguePointsButton && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={previewLeaguePoints}
+                    disabled={leaguePointsLoading}
+                    startIcon={<Score />}
+                  >
+                    Generate League Points
+                  </Button>
+                )}
                 <Button
                   variant="contained"
                   color="secondary"
@@ -1616,10 +1743,31 @@ function App() {
               ***Please note this competitor is autistic.***
             </Alert>
           )}
+
+          {/* Wish Ticket Checkbox - Only show when IS_WISHTICKET_SHOW is true, competitor has already run, and we're queueing (not unqueueing) */}
+          {IS_WISHTICKET_SHOW &&
+            !queuedEntry.queued_at &&
+            (queuedEntry.time ||
+              queuedEntry.eliminated ||
+              queuedEntry.nfc_run) && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={isWishTicket}
+                    onChange={(e) => setIsWishTicket(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label="This is a Wish Ticket (second attempt)"
+                sx={{ mb: 2 }}
+              />
+            )}
+
           <Box display="flex" gap={2}>
             <Button
               onClick={() => {
                 setQueuedEntry({} as Entry);
+                setIsWishTicket(false);
                 setQueueConfirmOpen(false);
               }}
               variant="outlined"
@@ -1632,8 +1780,9 @@ function App() {
               onClick={() => {
                 queuedEntry.queued_at
                   ? unqueueEntry(queuedEntry.id)
-                  : queueEntry(queuedEntry.id);
+                  : queueEntry(queuedEntry.id, isWishTicket);
                 setQueuedEntry({} as Entry);
+                setIsWishTicket(false);
                 setQueueConfirmOpen(false);
               }}
               variant="contained"
@@ -1641,6 +1790,79 @@ function App() {
               fullWidth
             >
               Confirm
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* League Points Preview Modal */}
+      <Modal
+        open={leaguePointsOpen}
+        onClose={() => {
+          if (!leaguePointsLoading) {
+            setLeaguePointsOpen(false);
+            setLeaguePointsPreview([]);
+          }
+        }}
+      >
+        <Box
+          sx={{
+            ...modalStyle,
+            width: { xs: "95%", sm: 560 },
+            maxHeight: "85vh",
+            overflow: "auto",
+          }}
+        >
+          <Typography variant="h6" component="h2" mb={2}>
+            Generate league points
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            This will replace existing league points for every height and grade
+            group in this class. Top 10 clear runs receive 10 down to 1 points.
+          </Typography>
+          {leaguePointsPreview.map((group) => {
+            const scorers = group.entries.filter(
+              (e) => (e.league_points ?? 0) > 0,
+            );
+            return (
+              <Box key={`${group.height}-${group.gradesLabel}`} mb={2}>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  {group.height} — Grades {group.gradesLabel}
+                </Typography>
+                {scorers.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No scoring runs
+                  </Typography>
+                ) : (
+                  scorers.map((entry) => (
+                    <Typography key={entry.id} variant="body2">
+                      {entry.league_points} pts — {entry.partnership}
+                    </Typography>
+                  ))
+                )}
+              </Box>
+            );
+          })}
+          <Box display="flex" gap={2} mt={2}>
+            <Button
+              onClick={() => {
+                setLeaguePointsOpen(false);
+                setLeaguePointsPreview([]);
+              }}
+              variant="outlined"
+              fullWidth
+              disabled={leaguePointsLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmLeaguePoints}
+              variant="contained"
+              color="primary"
+              fullWidth
+              disabled={leaguePointsLoading}
+            >
+              {leaguePointsLoading ? "Saving…" : "Confirm & save"}
             </Button>
           </Box>
         </Box>
@@ -1987,10 +2209,10 @@ function App() {
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
-          severity="success"
+          severity={snackbarSeverity}
           sx={{ width: "100%" }}
         >
-          League points have been generated for this class
+          {snackbarMessage}
         </Alert>
       </Snackbar>
     </Box>
