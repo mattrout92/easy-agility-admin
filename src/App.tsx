@@ -294,7 +294,7 @@ function App() {
           groups.push({
             height: heightKey,
             gradesLabel: gradesParam,
-            entries: response.data as Entry[],
+            entries: Array.isArray(response.data) ? response.data : [],
           });
         }
       }
@@ -1821,7 +1821,7 @@ function App() {
             group in this class. Top 10 clear runs receive 10 down to 1 points.
           </Typography>
           {leaguePointsPreview.map((group) => {
-            const scorers = group.entries.filter(
+            const scorers = (group.entries ?? []).filter(
               (e) => (e.league_points ?? 0) > 0,
             );
             return (
